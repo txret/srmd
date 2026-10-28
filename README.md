@@ -1,6 +1,10 @@
 # srmd
 
-A flashcard spaced repetition extension for Markdown suitable for knowlege base notes. Flashcards typically isolate facts, while knowledge-base notes organize related information and evolve over time. Keeping both synchronized duplicates work. Using unobtrusive cloze and scheduling Markdown syntax srmd generates flashcards from knowledge-base notes: note-taking first, spaced repetition second. The Markdown notes are parsed with [micromark](https://github.com/micromark/micromark) with custom extensions. Reviews are scheduled with [ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs), the TS implementation of the [FSRS algorithm](https://github.com/open-spaced-repetition/awesome-fsrs/wiki/The-Algorithm).
+A flashcard spaced repetition extension for Markdown suitable for knowlege base notes. Flashcards typically isolate facts, while knowledge-base notes organize related information and evolve over time. Keeping both synchronized duplicates work. Using unobtrusive cloze and scheduling Markdown syntax srmd generates flashcards from knowledge-base notes: note-taking first, spaced repetition second.
+
+![Screenshot](assets/screenshot.png)
+
+The Markdown notes are parsed with [micromark](https://github.com/micromark/micromark) with custom extensions. Reviews are scheduled with [ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs), the TS implementation of the [FSRS algorithm](https://github.com/open-spaced-repetition/awesome-fsrs/wiki/The-Algorithm).
 
 ```markdown
 The World population:: approx 8.3 billion
