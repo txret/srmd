@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <!--
+    Scripts and styles come from the app only; notes render without raw HTML, so they cannot add any. CodeMirror
+    inserts style elements, hence inline styles. Images and media come from the app and the notes folder, or data URLs:
+    the app has no network access, so images on the web do not load.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; media-src 'self'; font-src 'self'; connect-src 'self'">
+  <!-- Relative URLs belong to the shown file: the views move this base to its folder (see NoteView). -->
+  <base href="/notes/">
+  <link rel="stylesheet" href="/app/reviewer.css">
+  <link rel="stylesheet" href="/app/app.css">
+</head>
+<body>
+  <main id="main" data-mode="empty">
+    <div id="view" class="pane"></div>
+    <div id="review" class="pane"></div>
+    <div id="editor" class="pane"></div>
+    <div id="empty" class="pane"></div>
+    <div id="note-search" class="bar" role="search" hidden></div>
+    <div id="handle" aria-hidden="true"></div>
+  </main>
+  <div id="scrim"></div>
+  <nav id="drawer" aria-hidden="true">
+    <div id="tree" role="tree"></div>
+    <div class="bar"><input id="library-search" type="search" enterkeyhint="search" autocomplete="off"></div>
+    <div class="bar buttons">
+      <button type="button" id="toggle"></button>
+      <button type="button" id="format"></button>
+      <button type="button" id="review-shown"></button>
+      <button type="button" id="open-settings"></button>
+    </div>
+  </nav>
+  <section id="settings" hidden></section>
+  <div id="dialog" hidden></div>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="/app/app.js"></script>
+</body>
+</html>

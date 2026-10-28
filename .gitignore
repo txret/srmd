@@ -1,0 +1,15 @@
+\.*
+!/.gitignore
+!.vscode/
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+**/node_modules
+**/dist
+**/build
+/test-data/
+/ts-fsrs/
+/trace.log
+*.vsix
+/apps/android/native/app/src/main/assets/web
+local.properties

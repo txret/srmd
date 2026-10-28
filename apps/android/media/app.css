@@ -1,0 +1,643 @@
+/*
+ * Layout and theme of the Android app. The shared reviewer's styles (shared/ui/src/reviewer.css) load first; this
+ * layer places the main view's panes, the drawer, the bars, the settings page and dialogs, and follows the system's
+ * light or dark mode. The page draws edge to edge: fixed parts pad by the --inset-* variables, which the app sets from
+ * the shell's insets (system bars, and the keyboard while it shows).
+ */
+:root {
+    --bg: #ffffff;
+    --bg2: #f3f3f3;
+    --bg3: #e4e4e4;
+    --fg: #1f1f1f;
+    --muted: #616161;
+    --line: #d4d4d4;
+    --accent: #005fb8;
+    --accent-fg: #ffffff;
+    --danger: #b3261e;
+    --selected: #dbe7f7;
+    --scrim: rgba(0, 0, 0, 0.4);
+    --cloze-line: rgba(128, 128, 128, 0.45);
+    --cloze-tint: rgba(0, 95, 184, 0.08);
+    --match: rgba(255, 196, 0, 0.45);
+    --match-current: rgba(255, 120, 0, 0.6);
+    --inset-top: 0px;
+    --inset-bottom: 0px;
+    --inset-left: 0px;
+    --inset-right: 0px;
+    /* Height of a bar's row, and of the handle strip below the main view. */
+    --bar: 48px;
+    --handle: 22px;
+    color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #1f1f1f;
+        --bg2: #2a2a2a;
+        --bg3: #3a3a3a;
+        --fg: #d4d4d4;
+        --muted: #9d9d9d;
+        --line: #474747;
+        --accent: #4daafc;
+        --accent-fg: #102030;
+        --danger: #f2b8b5;
+        --selected: #37373d;
+        --scrim: rgba(0, 0, 0, 0.55);
+        --cloze-tint: rgba(77, 170, 252, 0.12);
+        --match: rgba(158, 106, 3, 0.55);
+        --match-current: rgba(230, 140, 20, 0.7);
+    }
+}
+
+[hidden] {
+    display: none !important;
+}
+html, body {
+    margin: 0;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: system-ui, sans-serif;
+    font-size: 16px;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+}
+button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+button:disabled {
+    opacity: 0.35;
+}
+.icon {
+    width: 24px;
+    height: 24px;
+    display: block;
+}
+
+/* Main view: one pane per mode, above the handle strip; only the current mode's pane shows. */
+#main {
+    position: fixed;
+    inset: 0;
+}
+.pane {
+    position: absolute;
+    top: var(--inset-top);
+    left: var(--inset-left);
+    right: var(--inset-right);
+    bottom: calc(var(--handle) + var(--inset-bottom));
+    display: none;
+    overflow: auto;
+    overscroll-behavior: contain;
+    /* Sideways moves belong to the drawer's swipe (see gestures.ts), except in elements that scroll sideways. */
+    touch-action: pan-y pinch-zoom;
+}
+#main[data-mode="view"] #view,
+#main[data-mode="review"] #review,
+#main[data-mode="edit"] #editor,
+#main[data-mode="empty"] #empty {
+    display: block;
+}
+/* The open search bar sits above the handle; the panes end above it, so it covers no text. */
+#main:has(#note-search:not([hidden])) .pane {
+    bottom: calc(var(--handle) + var(--inset-bottom) + var(--bar));
+}
+html.keyboard .pane {
+    bottom: var(--inset-bottom);
+}
+html.keyboard #main:has(#note-search:not([hidden])) .pane {
+    bottom: calc(var(--inset-bottom) + var(--bar));
+}
+#handle {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: var(--inset-bottom);
+    height: var(--handle);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: none;
+}
+#handle::before {
+    content: '';
+    width: 40px;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--line);
+}
+html.keyboard #handle {
+    display: none;
+}
+#empty {
+    display: none;
+    padding: 24px;
+    color: var(--muted);
+    text-align: center;
+}
+
+/* View mode: the rendered file; positioned, so the note search's highlight boxes place themselves in it. */
+#view {
+    padding: 12px 16px 32px;
+    line-height: 1.55;
+    overflow-wrap: break-word;
+    box-sizing: border-box;
+}
+#view .note > :first-child {
+    margin-top: 0;
+}
+#view img,
+#view video {
+    max-width: 100%;
+    height: auto;
+}
+#view a {
+    color: var(--accent);
+}
+#view code {
+    font-family: monospace;
+    font-size: 0.92em;
+    background: var(--bg2);
+    padding: 0 3px;
+    border-radius: 3px;
+}
+#view pre {
+    overflow-x: auto;
+    touch-action: pan-x pan-y pinch-zoom;
+    background: var(--bg2);
+    padding: 8px 10px;
+    border-radius: 4px;
+}
+#view pre code {
+    background: none;
+    padding: 0;
+}
+#view pre.plain {
+    white-space: pre-wrap;
+    background: none;
+    padding: 0;
+    font-size: 14px;
+}
+#view .wide {
+    overflow-x: auto;
+    touch-action: pan-x pan-y pinch-zoom;
+}
+#view blockquote {
+    margin: 0.5em 0;
+    padding-left: 12px;
+    border-left: 3px solid var(--line);
+    color: var(--muted);
+}
+#view hr {
+    border: none;
+    border-top: 1px solid var(--line);
+}
+/* Every cloze shown, outlined with a faint border, as in the VS Code Markdown preview. */
+#view .cloze[data-card] {
+    border: 1px solid var(--cloze-line);
+    border-radius: 3px;
+}
+#view span.cloze[data-card] {
+    padding: 0 2px;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
+#view div.cloze[data-card] {
+    margin: 0 0 16px;
+    padding: 4px 8px;
+}
+#view li > div.cloze[data-card] {
+    margin-bottom: 0.7em;
+}
+#view div.cloze[data-card] > :first-child {
+    margin-top: 0;
+}
+#view div.cloze[data-card] > :last-child {
+    margin-bottom: 0;
+}
+#view .matches,
+#view .match {
+    position: absolute;
+    pointer-events: none;
+    background: var(--match);
+}
+#view .match {
+    background: var(--match-current);
+}
+
+/* Review mode: the shared reviewer fills its pane, with touch-sized controls. */
+#review .sr-reviewer {
+    --sr-font: system-ui, sans-serif;
+    --sr-font-size: 16px;
+    --sr-controls-font-size: 15px;
+    height: 100%;
+}
+#review .sr-reviewer .content {
+    touch-action: pan-y pinch-zoom;
+}
+#review .sr-reviewer .footer button {
+    min-height: 44px;
+    padding: 4px 10px;
+}
+#review .sr-reviewer .search .search-field {
+    min-height: 40px;
+}
+
+/* Edit mode: CodeMirror in the app's colors. */
+#editor .cm-editor {
+    height: 100%;
+    background: var(--bg);
+    color: var(--fg);
+}
+#editor .cm-editor.cm-focused {
+    outline: none;
+}
+#editor .cm-scroller {
+    font-family: monospace;
+    font-size: 15px;
+    line-height: 1.5;
+}
+#editor .cm-content {
+    padding: 12px 0 32px;
+    caret-color: var(--fg);
+}
+#editor .cm-line {
+    padding: 0 12px;
+}
+#editor .cm-cursor {
+    border-left-color: var(--fg);
+}
+#editor .cm-srmd-marker {
+    color: var(--accent);
+    font-weight: bold;
+}
+#editor .cm-srmd-cloze {
+    background: var(--cloze-tint);
+}
+/* Card metadata stays muted, although Markdown also marks its brackets as link syntax. */
+#editor .cm-srmd-metadata,
+#editor .cm-srmd-metadata * {
+    color: var(--muted);
+}
+#editor .cm-search-match {
+    background: var(--match);
+}
+#editor .cm-search-match.current {
+    background: var(--match-current);
+}
+#editor .cm-md-heading {
+    font-weight: bold;
+}
+#editor .cm-md-emphasis {
+    font-style: italic;
+}
+#editor .cm-md-strong {
+    font-weight: bold;
+}
+#editor .cm-md-strike {
+    text-decoration: line-through;
+}
+#editor .cm-md-link {
+    color: var(--accent);
+}
+#editor .cm-md-code {
+    background: var(--bg2);
+}
+#editor .cm-md-quote,
+#editor .cm-md-markup {
+    color: var(--muted);
+}
+
+/* Bars: a row of a search field and round buttons. */
+.bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: var(--bar);
+    padding: 0 6px;
+    box-sizing: border-box;
+    background: var(--bg2);
+    border-top: 1px solid var(--line);
+}
+.bar input[type="search"] {
+    flex: 1;
+    min-width: 0;
+    height: 36px;
+    box-sizing: border-box;
+    font: inherit;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    padding: 0 14px;
+    outline: none;
+}
+.bar input[type="search"]:focus {
+    border-color: var(--accent);
+}
+.bar button {
+    width: 40px;
+    height: 40px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 20px;
+}
+.bar button:active {
+    background: var(--bg3);
+}
+#note-search {
+    position: absolute;
+    left: var(--inset-left);
+    right: var(--inset-right);
+    bottom: calc(var(--handle) + var(--inset-bottom));
+}
+html.keyboard #note-search {
+    bottom: var(--inset-bottom);
+}
+#note-search .count {
+    min-width: 3.5em;
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Drawer: slides out from the left over the dimmed note; while dragged it follows the finger without animation. */
+#scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    background: var(--scrim);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.22s;
+}
+#scrim.shown {
+    opacity: 1;
+    pointer-events: auto;
+}
+#scrim.dragging {
+    transition: none;
+}
+#drawer {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 11;
+    width: min(86vw, 440px);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    padding: var(--inset-top) 0 var(--inset-bottom) var(--inset-left);
+    background: var(--bg);
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    touch-action: pan-y;
+}
+#drawer.open,
+#drawer.dragging {
+    box-shadow: 0 0 16px rgba(0, 0, 0, 0.35);
+}
+#drawer.open {
+    transform: none;
+}
+#drawer.dragging {
+    transition: none;
+}
+#drawer .buttons {
+    justify-content: space-around;
+}
+#tree {
+    flex: 1;
+    overflow: auto;
+    overscroll-behavior: contain;
+    padding: 4px 0;
+}
+#tree .row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 40px;
+    padding: 0 4px 0 calc(4px + var(--depth) * 14px);
+}
+#tree .row.selected {
+    background: var(--selected);
+}
+#tree .twist {
+    width: 22px;
+    flex: none;
+    color: var(--muted);
+}
+#tree .twist .icon {
+    width: 18px;
+    height: 18px;
+    transition: transform 0.15s;
+}
+#tree .row.expanded .twist .icon {
+    transform: rotate(90deg);
+}
+#tree .name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+#tree .row.folder .name {
+    font-weight: 600;
+}
+#tree .row.other .name {
+    color: var(--muted);
+}
+#tree .counts {
+    color: var(--muted);
+    font-size: 13px;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+#tree .matches {
+    font-size: 12px;
+    padding: 0 6px;
+    border-radius: 9px;
+    background: var(--bg3);
+}
+#tree .review {
+    width: 36px;
+    height: 36px;
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: 18px;
+    color: var(--accent);
+}
+#tree .review .icon {
+    width: 20px;
+    height: 20px;
+}
+
+/* Settings: a page over everything. Headings restyled here, as the reviewer's styles reset every heading. */
+#settings {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    overflow: auto;
+    background: var(--bg);
+    padding: var(--inset-top) var(--inset-right) var(--inset-bottom) var(--inset-left);
+}
+#settings header.bar {
+    position: sticky;
+    top: 0;
+    border-top: none;
+    border-bottom: 1px solid var(--line);
+}
+#settings h1 {
+    all: unset;
+    flex: 1;
+    padding-left: 10px;
+    font-size: 20px;
+    font-weight: 600;
+}
+#settings h2 {
+    all: unset;
+    display: block;
+    margin-bottom: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+#settings .page {
+    padding: 8px 16px 32px;
+}
+#settings section {
+    margin: 16px 0 28px;
+}
+#settings .root {
+    margin: 4px 0 10px;
+    font-size: 18px;
+}
+#settings .status {
+    color: var(--muted);
+    font-size: 14px;
+}
+#settings .field {
+    display: block;
+    margin: 14px 0;
+}
+#settings .field .label {
+    display: block;
+    margin-bottom: 4px;
+    font-size: 14px;
+    color: var(--muted);
+}
+#settings .field input,
+#settings .field select {
+    width: 100%;
+    height: 40px;
+    box-sizing: border-box;
+    padding: 0 10px;
+    font: inherit;
+    color: var(--fg);
+    background: var(--bg2);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+}
+#settings .field input.invalid {
+    border-color: var(--danger);
+}
+#settings .field .hint {
+    display: block;
+    margin-top: 3px;
+    font-size: 12px;
+    color: var(--muted);
+}
+#settings .check {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 44px;
+}
+#settings .check input {
+    width: 20px;
+    height: 20px;
+}
+#settings .page button {
+    height: 40px;
+    margin: 4px 8px 4px 0;
+    padding: 0 16px;
+    border: 1px solid var(--line);
+    border-radius: 20px;
+}
+#settings .log {
+    max-height: 50vh;
+    overflow: auto;
+    padding: 8px;
+    font-size: 12px;
+    white-space: pre-wrap;
+    background: var(--bg2);
+}
+button.primary {
+    color: var(--accent-fg);
+    background: var(--accent);
+    border-color: var(--accent);
+}
+
+/* Dialogs and messages, over everything. */
+#dialog {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    background: var(--scrim);
+}
+#dialog .box {
+    max-width: 420px;
+    padding: 20px;
+    border-radius: 16px;
+    background: var(--bg);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
+#dialog p {
+    margin: 0;
+    line-height: 1.45;
+}
+#dialog .choices {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 18px;
+}
+#dialog button {
+    height: 40px;
+    padding: 0 14px;
+    border-radius: 20px;
+}
+#toast {
+    position: fixed;
+    left: 50%;
+    bottom: calc(var(--inset-bottom) + var(--handle) + 64px);
+    z-index: 40;
+    max-width: calc(100% - 48px);
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    color: #ffffff;
+    background: #323232;
+    transform: translateX(-50%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+#toast.shown {
+    opacity: 1;
+}

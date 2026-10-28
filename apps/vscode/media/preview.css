@@ -1,0 +1,33 @@
+/*
+ * Markdown preview layer for notes, loaded into every Markdown preview after VS Code's own styles. A note
+ * renders as in the review, but no cloze is hidden: each is outlined with a faint gray border, so the whole note
+ * reads as text with its answers marked. Only srmd's cloze elements carry data-card, so other documents' HTML
+ * is unaffected.
+ */
+.cloze[data-card] {
+    border: 1px solid rgba(128, 128, 128, 0.35);
+    border-radius: 3px;
+}
+
+/* An inline cloze stays in its line of text; each line it wraps onto gets its own outlined piece. */
+span.cloze[data-card] {
+    padding: 0 2px;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+}
+
+/* A block cloze frames its blocks, spaced like a paragraph; the padding replaces its blocks' outer margins. */
+div.cloze[data-card] {
+    margin: 0 0 16px;
+    padding: 4px 8px;
+}
+/* In a list item, spaced like the preview's nested lists and list paragraphs. */
+li > div.cloze[data-card] {
+    margin-bottom: 0.7em;
+}
+div.cloze[data-card] > :first-child {
+    margin-top: 0;
+}
+div.cloze[data-card] > :last-child {
+    margin-bottom: 0;
+}

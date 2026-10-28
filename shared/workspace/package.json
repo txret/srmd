@@ -1,0 +1,21 @@
+{
+  "name": "@srmd/workspace",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "pretest": "node ../l10n/scripts/compile.mjs",
+    "test": "node --import tsx --import ../../tests/setup.mjs --test",
+    "pretypecheck": "node ../l10n/scripts/compile.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit --pretty false"
+  },
+  "type": "module",
+  "dependencies": {
+    "@srmd/l10n": "*",
+    "@srmd/parser": "*",
+    "@srmd/reviewer": "*",
+    "@srmd/scheduler": "*",
+    "micromark-foam-placeholders": "*"
+  }
+}

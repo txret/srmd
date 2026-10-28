@@ -1,0 +1,80 @@
+/*
+ * VS Code theme layer for the shared reviewer. It maps the reviewer's --sr-* variables to the theme
+ * colors VS Code injects into webviews and uses VS Code's button, input and section-header metrics.
+ * Loaded after reviewer.css, so these rules win at equal specificity.
+ */
+
+/* VS Code pads webview bodies by default; the reviewer fills its tab like an editor. */
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.sr-reviewer {
+    --sr-font: var(--vscode-font-family);
+    --sr-font-size: var(--vscode-editor-font-size, 14px);
+    --sr-controls-font-size: var(--vscode-font-size);
+    --sr-radius: 2px;
+    --sr-bg1: var(--vscode-editor-background);
+    --sr-bg2: var(--vscode-editor-background);
+    --sr-fg: var(--vscode-editor-foreground);
+    --sr-fg-muted: var(--vscode-descriptionForeground);
+    --sr-border: var(--vscode-editorWidget-border, var(--vscode-panel-border));
+    --sr-border-focus: var(--vscode-focusBorder);
+    --sr-button: var(--vscode-button-secondaryBackground);
+    --sr-button-fg: var(--vscode-button-secondaryForeground);
+    --sr-button-hover: var(--vscode-button-secondaryHoverBackground);
+    --sr-button-default: var(--vscode-button-background);
+    --sr-button-default-fg: var(--vscode-button-foreground);
+    --sr-button-default-hover: var(--vscode-button-hoverBackground);
+    --sr-input-bg: var(--vscode-input-background);
+    --sr-input-fg: var(--vscode-input-foreground);
+    --sr-search-matches: var(--vscode-editor-findMatchHighlightBackground);
+    --sr-search-match: var(--vscode-editor-findMatchBackground);
+    --sr-notice-bg: var(--vscode-inputValidation-warningBackground);
+    --sr-notice-fg: var(--vscode-foreground);
+    --sr-notice-border: var(--vscode-inputValidation-warningBorder);
+}
+
+/* The note title reads like a view's section header. */
+.sr-reviewer .header {
+    color: var(--vscode-sideBarSectionHeader-foreground, var(--vscode-foreground));
+    background-color: var(--vscode-sideBarSectionHeader-background, transparent);
+    border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border, transparent));
+}
+.sr-reviewer .header .title {
+    font-size: 11px;
+    line-height: 22px;
+    padding: 0 20px;
+}
+
+/* Markdown-preview-like margins, with the editor font for code. */
+.sr-reviewer .content {
+    padding: 10px 20px;
+}
+.sr-reviewer .content :is(code, pre, kbd) {
+    font-family: var(--vscode-editor-font-family);
+}
+
+.sr-reviewer .footer {
+    padding: 8px 20px;
+    border-top: 1px solid var(--vscode-panel-border, transparent);
+}
+.sr-reviewer .footer .search {
+    border-top-color: var(--vscode-panel-border, transparent);
+}
+
+/* VS Code button metrics; themes without a button border get a transparent one of the same width. */
+.sr-reviewer .footer button {
+    padding: 4px 11px;
+    line-height: 18px;
+    border: 1px solid var(--vscode-button-border, transparent);
+}
+.sr-reviewer .search .search-field {
+    padding: 3px 6px;
+    line-height: 18px;
+    border: 1px solid var(--vscode-input-border, transparent);
+}
+.sr-reviewer .search .search-field::placeholder {
+    color: var(--vscode-input-placeholderForeground);
+}

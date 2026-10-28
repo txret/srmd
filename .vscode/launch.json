@@ -1,0 +1,230 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "srmd: Android WebView",
+      "type": "pwa-chrome",
+      "request": "attach",
+      "address": "127.0.0.1",
+      "port": 9223,
+      "urlFilter": "https://appassets.androidplatform.net/app/*",
+      "webRoot": "${workspaceFolder}/apps/android/native/app/src/main/assets/web",
+      "pathMapping": {
+        "/app/": "${workspaceFolder}/apps/android/native/app/src/main/assets/web/"
+      },
+      "outFiles": ["${workspaceFolder}/apps/android/native/app/src/main/assets/web/app.js"],
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "../../../../../../../../*": "${workspaceFolder}/*",
+        "../../../../../../src/*": "${workspaceFolder}/apps/android/src/*"
+      },
+      "preLaunchTask": "srmd: prepare android debug"
+    },
+    {
+      "name": "srmd: Extension Development Host",
+      "type": "extensionHost",
+      "request": "launch",
+      "runtimeExecutable": "${execPath}",
+      "args": [
+        "--extensionDevelopmentPath=${workspaceFolder}/apps/vscode",
+        "--disable-extensions",
+        "${workspaceFolder}/test-data"
+      ],
+      "outFiles": [
+        "${workspaceFolder}/apps/vscode/dist/**/*.js"
+      ],
+      "sourceMaps": true,
+      "resolveSourceMapLocations": [
+        "${workspaceFolder}/**",
+        "!**/node_modules/**"
+      ],
+      "preLaunchTask": "srmd: build vscode extension"
+    },
+    {
+      "name": "test: foam placeholders",
+      "type": "node",
+      "request": "launch",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": [
+        "<node_internals>/**",
+        "**/node_modules/**"
+      ],
+      "cwd": "${workspaceFolder}/extensions/micromark-foam-placeholders",
+      "runtimeArgs": [
+        "--import",
+        "tsx",
+        "--test"
+      ]
+    },
+    {
+      "name": "test: l10n",
+      "type": "node",
+      "request": "launch",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": [
+        "<node_internals>/**",
+        "**/node_modules/**"
+      ],
+      "cwd": "${workspaceFolder}/shared/l10n",
+      "runtimeArgs": [
+        "--import",
+        "tsx",
+        "--import",
+        "${workspaceFolder}/tests/setup.mjs",
+        "--test"
+      ],
+      "preLaunchTask": "srmd: compile l10n"
+    },
+    {
+      "name": "test: parser",
+      "type": "node",
+      "request": "launch",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": [
+        "<node_internals>/**",
+        "**/node_modules/**"
+      ],
+      "cwd": "${workspaceFolder}/shared/parser",
+      "runtimeArgs": [
+        "--import",
+        "tsx",
+        "--import",
+        "${workspaceFolder}/tests/setup.mjs",
+        "--test"
+      ]
+    },
+    {
+      "name": "test: scheduler",
+      "type": "node",
+      "request": "launch",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": [
+        "<node_internals>/**",
+        "**/node_modules/**"
+      ],
+      "cwd": "${workspaceFolder}/shared/scheduler",
+      "runtimeArgs": [
+        "--import",
+        "tsx",
+        "--import",
+        "${workspaceFolder}/tests/setup.mjs",
+        "--test"
+      ]
+    },
+    {
+      "name": "test: reviewer",
+      "type": "node",
+      "request": "launch",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": [
+        "<node_internals>/**",
+        "**/node_modules/**"
+      ],
+      "cwd": "${workspaceFolder}/shared/reviewer",
+      "runtimeArgs": [
+        "--import",
+        "tsx",
+        "--import",
+        "${workspaceFolder}/tests/setup.mjs",
+        "--test"
+      ],
+      "preLaunchTask": "srmd: compile l10n"
+    },
+    {
+      "name": "test: ui",
+      "type": "node",
+      "request": "launch",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": [
+        "<node_internals>/**",
+        "**/node_modules/**"
+      ],
+      "cwd": "${workspaceFolder}/shared/ui",
+      "runtimeArgs": [
+        "--import",
+        "tsx",
+        "--import",
+        "${workspaceFolder}/tests/setup.mjs",
+        "--test"
+      ],
+      "preLaunchTask": "srmd: compile l10n"
+    },
+    {
+      "name": "test: vscode host",
+      "type": "node",
+      "request": "launch",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": [
+        "<node_internals>/**",
+        "**/node_modules/**"
+      ],
+      "cwd": "${workspaceFolder}/apps/vscode",
+      "runtimeArgs": [
+        "--import",
+        "${workspaceFolder}/tests/setup.mjs",
+        "--test"
+      ],
+      "preLaunchTask": "srmd: build vscode host tests"
+    },
+    {
+      "name": "test: current file",
+      "type": "node",
+      "request": "launch",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": [
+        "<node_internals>/**",
+        "**/node_modules/**"
+      ],
+      "cwd": "${fileDirname}/..",
+      "runtimeArgs": [
+        "--import",
+        "tsx",
+        "--import",
+        "${workspaceFolder}/tests/setup.mjs",
+        "--test",
+        "--test-name-pattern",
+        "${input:testName}"
+      ],
+      "args": [
+        "${file}"
+      ]
+    },
+    {
+      "name": "inspect: note",
+      "type": "node",
+      "request": "launch",
+      "console": "integratedTerminal",
+      "internalConsoleOptions": "neverOpen",
+      "skipFiles": [
+        "<node_internals>/**",
+        "**/node_modules/**"
+      ],
+      "cwd": "${workspaceFolder}/shared/parser",
+      "runtimeArgs": [
+        "--import",
+        "tsx"
+      ],
+      "program": "${workspaceFolder}/shared/parser/tests/inspection.mjs",
+      "args": [
+        "--serialize",
+        "${file}"
+      ]
+    }
+  ],
+  "inputs": [
+    {
+      "id": "testName",
+      "type": "promptString",
+      "description": "Test name pattern (regular expression); empty runs every test in the file",
+      "default": ""
+    }
+  ]
+}

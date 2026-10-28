@@ -1,0 +1,44 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "srmd: prepare android debug",
+      "type": "process",
+      "command": "npm",
+      "args": ["run", "debug:android"],
+      "options": {
+        "env": {
+          "ANDROID_HOME": "${env:HOME}/Android",
+          "ANDROID_AVD_HOME": "${env:HOME}/Android/avd"
+        }
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "srmd: build vscode extension",
+      "type": "shell",
+      "command": "npm run -w @srmd/app-vscode build",
+      "group": "build",
+      "problemMatcher": "$tsc"
+    },
+    {
+      "label": "srmd: watch vscode extension",
+      "type": "shell",
+      "command": "npm run -w @srmd/app-vscode watch",
+      "isBackground": true,
+      "problemMatcher": "$tsc"
+    },
+    {
+      "label": "srmd: build vscode host tests",
+      "type": "shell",
+      "command": "npm run -w @srmd/app-vscode pretest",
+      "problemMatcher": []
+    },
+    {
+      "label": "srmd: compile l10n",
+      "type": "shell",
+      "command": "npm run compile:l10n",
+      "problemMatcher": []
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "@srmd/scheduler",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "test": "node --import tsx --import ../../tests/setup.mjs --test",
+    "typecheck": "tsc -p tsconfig.json --noEmit --pretty false"
+  },
+  "dependencies": {
+    "ts-fsrs": ">=5.4.2",
+    "@srmd/parser": "*"
+  },
+  "type": "module"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "micromark-foam-placeholders",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Placeholders for Foam's syntax in micromark: block anchors hidden, wiki links and embeds as text.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "test": "node --import tsx --test",
+    "typecheck": "tsc -p tsconfig.json --noEmit --pretty false"
+  },
+  "dependencies": {
+    "micromark-util-character": ">=2.1.1"
+  },
+  "devDependencies": {
+    "micromark": ">=4.0.3",
+    "micromark-extension-gfm": ">=3.0.0",
+    "micromark-util-types": ">=2.0.3"
+  }
+}

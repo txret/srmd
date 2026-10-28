@@ -1,0 +1,224 @@
+/* Fonts, shapes and colors. Hosts restyle the reviewer by overriding these variables on .sr-reviewer. */
+:root {
+    --sr-font: Arial, Helvetica, sans-serif;
+    --sr-font-size: 16px;
+    --sr-controls-font-size: 14px;
+    --sr-radius: 5px;
+    --sr-bg1: white;
+    --sr-bg2: #f5f5f5;
+    --sr-fg: #020202;
+    --sr-fg-muted: #616161;
+    --sr-border: #020202;
+    --sr-border-focus: #3b82f6;
+    --sr-button: #0000001a;
+    --sr-button-fg: #020202;
+    --sr-button-hover: #00000026;
+    --sr-button-default: #005FB8;
+    --sr-button-default-fg: #ffffff;
+    --sr-button-default-hover: #0258a8;
+    --sr-input-bg: #ffffff;
+    --sr-input-fg: #020202;
+    --sr-search-matches: #80bfff40;
+    --sr-search-match: #00256b40;
+    --sr-notice-bg: #fff4ce;
+    --sr-notice-fg: #020202;
+    --sr-notice-border: #b98a00;
+}
+.night_mode {
+    --sr-bg1: #1f1f1f;
+    --sr-bg2: #2c2c2c;
+    --sr-fg: #d4d4d4;
+    --sr-fg-muted: #9d9d9d;
+    --sr-border: #474747;
+    --sr-border-focus: #3b82f6;
+    --sr-button: #FFFFFF0F;
+    --sr-button-fg: #d4d4d4;
+    --sr-button-hover: #FFFFFF1A;
+    --sr-button-default: #0078d4;
+    --sr-button-default-fg: #ffffff;
+    --sr-button-default-hover: #026ec1;
+    --sr-input-bg: #313131;
+    --sr-input-fg: #d4d4d4;
+    --sr-search-matches: #9e6a0340;
+    --sr-search-match: #78c2ff40;
+    --sr-notice-bg: #352a05;
+    --sr-notice-fg: #d4d4d4;
+    --sr-notice-border: #b89500;
+}
+
+.sr-reviewer {
+    font-family: var(--sr-font);
+    font-size: var(--sr-font-size);
+    color: var(--sr-fg);
+    background-color: var(--sr-bg1);
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+/* The root takes focus only to receive keyboard shortcuts; an outline around the whole reviewer conveys nothing. */
+.sr-reviewer:focus {
+    outline: none;
+}
+.sr-reviewer::-webkit-scrollbar-track {
+    background: var(--sr-bg1);
+}
+
+.sr-reviewer .header {
+    background-color: var(--sr-bg2);
+    flex: 0 0 auto;
+}
+.sr-reviewer .header .title {
+    padding: 5px 10px;
+    margin: 0px;
+    text-transform: uppercase; font-weight: bold;
+}
+
+/* Problems of the note stay above it while the note scrolls. */
+.sr-reviewer .notice {
+    flex: 0 0 auto;
+    padding: 5px 10px;
+    font-size: var(--sr-controls-font-size);
+    color: var(--sr-notice-fg);
+    background-color: var(--sr-notice-bg);
+    border-bottom: 1px solid var(--sr-notice-border);
+}
+.sr-reviewer .notice p {
+    margin: 2px 0;
+}
+
+.sr-reviewer .content {
+    padding: 10px;
+    position: relative;
+    overflow: auto;
+    flex: 1 1 auto;
+    min-height: 0;
+}
+.sr-reviewer .content .cloze {
+    display: block;
+    min-width: 100px; min-height: 1em;
+    margin: 3px; padding: 5px;
+    border: 1px solid var(--sr-border);
+}
+.sr-reviewer .content .cloze.active { border: 1px solid var(--sr-border-focus); }
+/* A hidden cloze is an empty box, unless it holds an active or revealed cloze; search shows all text. */
+.sr-reviewer:not(.search) .cloze.hide:not(:has(.cloze:not(.hide))):not(:has(.cloze.active)) {
+    display: inline-block;
+    content-visibility: hidden;
+    vertical-align: middle;
+    min-width: 50px;
+    min-height: 1em;
+}
+.sr-reviewer .content .cloze.current {
+    border-width: 2px;
+}
+
+.sr-reviewer .footer {
+    display: flex; gap: 10px;
+    padding: 5px 10px;
+    background-color: var(--sr-bg2);
+    flex: 0 0 auto;
+}
+.sr-reviewer .footer .front,
+.sr-reviewer .footer .back {
+    display: flex; flex-wrap: wrap; gap: 5px;
+}
+.sr-reviewer.back .footer .front,
+.sr-reviewer.front .footer .back,
+.sr-reviewer.search .footer :is(.front, .back) {
+    display: none;
+}
+/* Footer controls share one button style; the default choice stands out as the primary action. */
+.sr-reviewer .footer button {
+    font-family: inherit; font-size: var(--sr-controls-font-size);
+    color: var(--sr-button-fg);
+    background-color: var(--sr-button);
+    border: 1px solid var(--sr-border); border-radius: var(--sr-radius);
+    cursor: pointer;
+}
+.sr-reviewer .footer button:hover {
+    background-color: var(--sr-button-hover);
+}
+.sr-reviewer .footer button:focus-visible {
+    outline: 1px solid var(--sr-border-focus); outline-offset: 2px;
+}
+.sr-reviewer .footer .choice-btn.default {
+    color: var(--sr-button-default-fg);
+    background-color: var(--sr-button-default);
+}
+.sr-reviewer .footer .choice-btn.default:hover {
+    background-color: var(--sr-button-default-hover);
+}
+/* The previewed interval is a quieter second line below the choice label. */
+.sr-reviewer .footer .choice-btn .detail {
+    display: block;
+    font-size: 85%;
+    color: var(--sr-fg-muted);
+}
+.sr-reviewer .footer .choice-btn.default .detail {
+    color: inherit; opacity: 0.8;
+}
+.sr-reviewer .footer .search {
+        padding: 2px;
+        background-color: var(--sr-bg2);
+        border-top: 1px solid var(--sr-border);
+}
+.sr-reviewer:not(.search) .footer .search {
+    display: none;
+}
+.sr-reviewer .search .search-field {
+    font-family: inherit; font-size: var(--sr-controls-font-size);
+    color: var(--sr-input-fg);
+    background-color: var(--sr-input-bg);
+    border: 1px solid var(--sr-border); border-radius: var(--sr-radius);
+}
+.sr-reviewer .search .search-field:focus {
+    outline: 1px solid var(--sr-border-focus); outline-offset: -1px;
+}
+.sr-reviewer .content .matches {
+    position: absolute;
+    pointer-events: none;
+    background-color: var(--sr-search-matches);
+}
+.sr-reviewer .content .match {
+    position: absolute;
+    pointer-events: none;
+    background-color: var(--sr-search-match);
+}
+.sr-reviewer:not(.search) .content .match,
+.sr-reviewer:not(.search) .content .matches {
+    display: none;
+}
+
+/* reduce whitespace and indents for lists */
+li { margin: 0px; padding: 0px; }
+ul, ol {
+    padding: unset; padding-left: 1em;
+    margin: unset; margin-left: 0.7em; margin-block-start: 0.5em; margin-block-end: 0.5em;
+}
+li ul, li ol { margin-block-start: 0em; margin-block-end: 0.7em;}
+
+/* Reduce list indents and spacing when in a table */
+td ul, td ol { margin-block-start: 0em; margin-block-end: 0em; margin-left: 0em; }
+td li ul, td li ol { margin-left: 0.5em; }
+
+/* Default table formating */
+table:not([class]) { border-collapse: collapse; width: 100%; margin-bottom: 20px; margin-top: 5px; }
+table th:not([class]) { border: 1px solid var(--sr-border); font-weight: bold; text-transform: uppercase; background-color: var(--sr-button); text-align: center;}
+table td:not([class]) { border: 1px solid var(--sr-border); text-align: center;}
+
+/* Default header formating */
+h1, h2, h3, h4, h5, h6 {
+    all: unset;
+    display: block;
+    margin-block-end: 0.3em;
+}
+h1:not(:first-child), h2:not(:first-child), h3:not(:first-child),
+h4:not(:first-child), h5:not(:first-child), h6:not(:first-child) {
+    margin-block-start: 1em;
+}
+h1:first-child { font-size: 150%; margin-block-end: 1em; }
+h1 { font-weight: bold; text-transform: uppercase; }
+h2 { font-weight: bold; text-transform: uppercase; }
+h3 { text-decoration: underline; }
+h4 { font-style: italic; text-decoration: underline; }
+h5 { font-style: italic; }

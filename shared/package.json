@@ -1,0 +1,26 @@
+{
+  "name": "@srmd/shared",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "scripts": {
+    "test": "npm test --workspace @srmd/l10n --workspace @srmd/parser --workspace @srmd/scheduler --workspace @srmd/reviewer --workspace @srmd/ui --workspace @srmd/workspace --",
+    "typecheck": "npm run typecheck --workspace @srmd/l10n --workspace @srmd/parser --workspace @srmd/scheduler --workspace @srmd/reviewer --workspace @srmd/ui --workspace @srmd/workspace"
+  },
+  "devDependencies": {
+    "@types/mdast": ">=4.0.4",
+    "@types/node": ">=26.6.5",
+    "micromark-util-types": ">=2.0.3",
+    "typescript": ">=7.0.2"
+  },
+  "type": "module",
+  "dependencies": {
+    "@srmd/l10n": "*",
+    "@srmd/parser": "*",
+    "@srmd/reviewer": "*",
+    "@srmd/scheduler": "*",
+    "@srmd/ui": "*",
+    "@srmd/workspace": "*"
+  }
+}

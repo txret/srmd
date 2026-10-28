@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A card with srmd's cloze marker, two colons, inside the adaptive icon's 66 dp safe zone: the card is white, the
+  colons are cut out of it, showing the background.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillType="evenOdd"
+        android:pathData="M36,34 L72,34 Q78,34 78,40 L78,68 Q78,74 72,74 L36,74 Q30,74 30,68 L30,40 Q30,34 36,34 Z
+            M47,47 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+            M47,61 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+            M61,47 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z
+            M61,61 m-4,0 a4,4 0 1,0 8,0 a4,4 0 1,0 -8,0 Z" />
+</vector>

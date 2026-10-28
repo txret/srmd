@@ -1,0 +1,42 @@
+{
+  "name": "@srmd/app-android",
+  "displayName": "srmd",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "compile:l10n": "node ../../shared/l10n/scripts/compile.mjs",
+    "build": "npm run compile:l10n && tsc -p tsconfig.json --noEmit && rollup -c",
+    "pretest": "npm run build",
+    "test": "node --import tsx --import ../../tests/setup.mjs --test",
+    "pretypecheck": "npm run compile:l10n",
+    "typecheck": "tsc -p tsconfig.json --noEmit --pretty false",
+    "apk": "npm run build && cd native && ./gradlew assembleDebug",
+    "debug": "node scripts/debug.mjs",
+    "test:native": "cd native && ./gradlew testDebugUnitTest",
+    "clean": "node -e \"require('node:fs').rmSync('native/app/src/main/assets/web', { recursive: true, force: true })\""
+  },
+  "dependencies": {
+    "@codemirror/commands": ">=6.11.1",
+    "@codemirror/lang-markdown": ">=6.5.2",
+    "@codemirror/language": ">=6.13.1",
+    "@codemirror/search": ">=6.7.2",
+    "@codemirror/state": ">=6.7.6",
+    "@codemirror/view": ">=6.43.15",
+    "@lezer/highlight": ">=1.2.5",
+    "@srmd/l10n": "*",
+    "@srmd/parser": "*",
+    "@srmd/reviewer": "*",
+    "@srmd/scheduler": "*",
+    "@srmd/ui": "*",
+    "@srmd/workspace": "*"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": ">=29.0.3",
+    "@rollup/plugin-node-resolve": ">=16.0.3",
+    "rollup": ">=4.64.8",
+    "rollup-plugin-esbuild": ">=6.2.1",
+    "typescript": ">=7.0.2"
+  }
+}

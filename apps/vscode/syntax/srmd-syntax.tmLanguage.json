@@ -1,0 +1,49 @@
+{
+    "scopeName": "srmd.markdown.injection",
+    "comment": "Inject within Markdown text containers so Markdown establishes block and inline structure before srmd selects individual tokens. Headings are excluded: srmd syntax is literal text there.",
+    "injectionSelector": "L:text.html.markdown (meta.paragraph | markup.table | markup.bold | markup.italic | markup.strikethrough | string.other.link.title) - (markup.raw | markup.inline.raw | markup.fenced_code | meta.embedded | meta.tag | comment | string.quoted | markup.underline.link)",
+    "patterns": [
+        {
+            "include": "#card-definitions"
+        },
+        {
+            "include": "#main"
+        },
+        {
+            "include": "#cloze-markers"
+        },
+        {
+            "include": "#card-references"
+        }
+    ],
+    "repository": {
+        "main": {
+            "patterns": [
+                {
+                    "comment": "Markdown's bundled escape rule omits colon and less-than, both of which can start srmd markers.",
+                    "match": "\\\\[:<]",
+                    "name": "constant.character.escape.markdown"
+                },
+                {
+                    "match": "(?<=^\\s*[-*] +|^\\s*\\d+[.)] +|^\\s*)(?:-{3,}|\\*{3,})(?=\\s*$)",
+                    "name": "punctuation.definition.thematic-break.markdown"
+                }
+            ]
+        },
+        "cloze-markers": {
+            "comment": "Select each complete opener or closer without tracking cloze contents or pairing markers. Implicit openers require whitespace or a line ending.",
+            "match": "<:+[:;]|:+[:;](?:>|(?=[ \\t]|$))",
+            "name": "punctuation.definition.srmd.markdown"
+        },
+        "card-references": {
+            "comment": "Select a whole card reference, unless a backslash escapes its bracket or it labels a definition. The parser determines which card it belongs to.",
+            "match": "(?<!\\\\)\\[:0*[1-9][0-9]*\\](?!:)",
+            "name": "comment.other.card-reference.srmd.markdown"
+        },
+        "card-definitions": {
+            "comment": "Select an entire single-line card definition, its state and up to eight further fields, including definitions after Markdown quote/list prefixes (\\G).",
+            "match": "(?:^|\\G)[ ]{0,3}\\[:0*[1-9][0-9]*\\]:[ \\t]*(?:[nlkr!]|[0-9]+[dwm])(?:[ \\t]+(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)){0,8}[ \\t]*$",
+            "name": "comment.line.card-definition.srmd.markdown"
+        }
+    }
+}

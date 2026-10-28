@@ -1,0 +1,20 @@
+{
+  "name": "@srmd/l10n",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "compile": "node scripts/compile.mjs",
+    "pretest": "npm run compile",
+    "test": "node --import tsx --import ../../tests/setup.mjs --test",
+    "pretypecheck": "npm run compile",
+    "typecheck": "tsc -p tsconfig.json --noEmit --pretty false"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@inlang/paraglide-js": ">=2.29.0",
+    "@inlang/plugin-message-format": ">=4.5.4",
+    "@inlang/sdk": ">=4.0.4"
+  }
+}

@@ -1,0 +1,372 @@
+{
+  "name": "@srmd/app-vscode",
+  "displayName": "srmd",
+  "version": "0.1.0",
+  "publisher": "srmd",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/txret/foam-sr.git"
+  },
+  "private": true,
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "contributes": {
+    "grammars": [
+      {
+        "scopeName": "srmd.markdown.injection",
+        "path": "./syntax/srmd-syntax.tmLanguage.json",
+        "injectTo": [
+          "text.html.markdown"
+        ]
+      }
+    ],
+    "markdown.markdownItPlugins": true,
+    "markdown.previewStyles": [
+      "./dist/media/preview.css"
+    ],
+    "configuration": {
+      "title": "srmd",
+      "properties": {
+        "srmd.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.enabled%"
+        },
+        "srmd.rollover": {
+          "type": "string",
+          "default": "04:00",
+          "pattern": "^([01]?\\d|2[0-3]):[0-5]\\d(:[0-5]\\d)?$",
+          "description": "%config.rollover%"
+        },
+        "srmd.inactive.front": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.inactive.front%"
+        },
+        "srmd.inactive.back": {
+          "type": "boolean",
+          "default": false,
+          "description": "%config.inactive.back%"
+        },
+        "srmd.queueOrder": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "intraday",
+              "interday",
+              "new"
+            ]
+          },
+          "uniqueItems": true,
+          "minItems": 3,
+          "maxItems": 3,
+          "default": [
+            "intraday",
+            "interday",
+            "new"
+          ],
+          "description": "%config.queueOrder%"
+        },
+        "srmd.suffixes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "minItems": 1,
+          "uniqueItems": true,
+          "default": [
+            ".sr.md"
+          ],
+          "description": "%config.suffixes%"
+        },
+        "srmd.extensions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "foam-placeholders"
+            ],
+            "enumDescriptions": [
+              "%config.extensions.foamPlaceholders%"
+            ]
+          },
+          "uniqueItems": true,
+          "default": [],
+          "description": "%config.extensions%"
+        },
+        "srmd.format.wrap": {
+          "type": "string",
+          "enum": [
+            "preserve",
+            "always",
+            "never"
+          ],
+          "enumDescriptions": [
+            "%config.format.wrap.preserve%",
+            "%config.format.wrap.always%",
+            "%config.format.wrap.never%"
+          ],
+          "default": "preserve",
+          "description": "%config.format.wrap%"
+        },
+        "srmd.format.lineWidth": {
+          "type": "integer",
+          "minimum": 20,
+          "default": 80,
+          "description": "%config.format.lineWidth%"
+        },
+        "srmd.format.numbering": {
+          "type": "string",
+          "enum": [
+            "increment",
+            "repeat"
+          ],
+          "enumDescriptions": [
+            "%config.format.numbering.increment%",
+            "%config.format.numbering.repeat%"
+          ],
+          "default": "increment",
+          "description": "%config.format.numbering%"
+        },
+        "srmd.format.bullet": {
+          "type": "string",
+          "enum": [
+            "-",
+            "*",
+            "+"
+          ],
+          "default": "-",
+          "description": "%config.format.bullet%"
+        },
+        "srmd.format.tableDelimiters": {
+          "type": "string",
+          "enum": [
+            "compact",
+            "padded"
+          ],
+          "enumDescriptions": [
+            "%config.format.tableDelimiters.compact%",
+            "%config.format.tableDelimiters.padded%"
+          ],
+          "default": "compact",
+          "description": "%config.format.tableDelimiters%"
+        },
+        "srmd.format.emphasis": {
+          "type": "string",
+          "enum": [
+            "preserve",
+            "asterisk",
+            "underscore"
+          ],
+          "enumDescriptions": [
+            "%config.format.emphasis.preserve%",
+            "%config.format.emphasis.asterisk%",
+            "%config.format.emphasis.underscore%"
+          ],
+          "default": "preserve",
+          "description": "%config.format.emphasis%"
+        },
+        "srmd.format.strong": {
+          "type": "string",
+          "enum": [
+            "preserve",
+            "asterisk",
+            "underscore"
+          ],
+          "enumDescriptions": [
+            "%config.format.strong.preserve%",
+            "%config.format.strong.asterisk%",
+            "%config.format.strong.underscore%"
+          ],
+          "default": "preserve",
+          "description": "%config.format.strong%"
+        }
+      }
+    },
+    "views": {
+      "explorer": [
+        {
+          "id": "srmd.notes",
+          "name": "%view.notes%",
+          "when": "workspaceFolderCount > 0 && config.srmd.enabled"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "srmd.notes.review",
+        "key": "enter",
+        "when": "focusedView == srmd.notes && listFocus && !inputFocus"
+      },
+      {
+        "command": "srmd.notes.edit",
+        "key": "ctrl+enter",
+        "mac": "cmd+enter",
+        "when": "focusedView == srmd.notes && listFocus && !inputFocus"
+      }
+    ],
+    "commands": [
+      {
+        "command": "srmd.review",
+        "title": "%command.review%"
+      },
+      {
+        "command": "srmd.enable",
+        "title": "%command.enable%"
+      },
+      {
+        "command": "srmd.disable",
+        "title": "%command.disable%"
+      },
+      {
+        "command": "srmd.toggle",
+        "title": "%command.toggle%"
+      },
+      {
+        "command": "srmd.notes.review",
+        "title": "%command.notes.review%",
+        "icon": "$(play)"
+      },
+      {
+        "command": "srmd.notes.edit",
+        "title": "%command.notes.edit%",
+        "icon": "$(edit)"
+      },
+      {
+        "command": "srmd.notes.reveal",
+        "title": "%command.notes.reveal%"
+      },
+      {
+        "command": "srmd.showNote",
+        "title": "%command.showNote%",
+        "icon": "$(go-to-file)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "srmd.review",
+          "when": "workspaceFolderCount > 0 && config.srmd.enabled"
+        },
+        {
+          "command": "srmd.enable",
+          "when": "workspaceFolderCount > 0 && !config.srmd.enabled"
+        },
+        {
+          "command": "srmd.disable",
+          "when": "workspaceFolderCount > 0 && config.srmd.enabled"
+        },
+        {
+          "command": "srmd.toggle",
+          "when": "false"
+        },
+        {
+          "command": "srmd.notes.review",
+          "when": "false"
+        },
+        {
+          "command": "srmd.notes.edit",
+          "when": "false"
+        },
+        {
+          "command": "srmd.notes.reveal",
+          "when": "false"
+        },
+        {
+          "command": "srmd.showNote",
+          "when": "activeWebviewPanelId == 'srmdReviewer'"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "srmd.review",
+          "when": "resource in srmd.reviewResources",
+          "group": "navigation@10"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "srmd.notes.review",
+          "when": "view == srmd.notes",
+          "group": "inline@1"
+        },
+        {
+          "command": "srmd.notes.edit",
+          "when": "view == srmd.notes && viewItem == note",
+          "group": "inline@2"
+        },
+        {
+          "command": "srmd.notes.review",
+          "when": "view == srmd.notes",
+          "group": "navigation@1"
+        },
+        {
+          "command": "srmd.notes.edit",
+          "when": "view == srmd.notes && viewItem == note",
+          "group": "navigation@2"
+        },
+        {
+          "command": "srmd.notes.reveal",
+          "when": "view == srmd.notes",
+          "group": "navigation@3"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "srmd.showNote",
+          "when": "activeWebviewPanelId == 'srmdReviewer'",
+          "group": "navigation"
+        }
+      ],
+      "editor/title/context": [
+        {
+          "command": "srmd.showNote",
+          "when": "activeWebviewPanelId == 'srmdReviewer'"
+        }
+      ],
+      "webview/context": [
+        {
+          "command": "srmd.showNote",
+          "when": "webviewId == 'srmdReviewer'"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "test": "node --import ../../tests/setup.mjs --test",
+    "compile:l10n": "node ../../shared/l10n/scripts/compile.mjs",
+    "build": "npm run compile:l10n && tsc -p tsconfig.json --noEmit && rollup -c",
+    "pretypecheck": "npm run compile:l10n",
+    "typecheck": "tsc -p tsconfig.json --noEmit --pretty false",
+    "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
+    "watch": "npm run compile:l10n && rollup -c -w",
+    "package": "npm run build && node ./scripts/package-vsix.mjs",
+    "pretest": "npm run build"
+  },
+  "dependencies": {
+    "@srmd/l10n": "*",
+    "@srmd/parser": "*",
+    "@srmd/reviewer": "*",
+    "@srmd/scheduler": "*",
+    "@srmd/ui": "*",
+    "@srmd/workspace": "*"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": ">=29.0.3",
+    "@rollup/plugin-node-resolve": ">=16.0.3",
+    "@types/vscode": "1.85.0",
+    "@vscode/vsce": ">=4.0.0",
+    "markdown-it": ">=14.3.2",
+    "rollup": ">=4.64.8",
+    "rollup-plugin-esbuild": ">=6.2.1",
+    "typescript": ">=7.0.2"
+  }
+}

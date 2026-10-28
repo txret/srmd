@@ -1,0 +1,47 @@
+{
+  "name": "srmd",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/txret/foam-sr.git"
+  },
+  "workspaces": [
+    "extensions/*",
+    "shared",
+    "shared/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run -w @srmd/app-vscode build && npm run -w @srmd/app-android build",
+    "build:vscode": "npm run -w @srmd/app-vscode build",
+    "build:package": "npm run -w @srmd/app-vscode package",
+    "build:android": "npm run -w @srmd/app-android build",
+    "apk": "npm run -w @srmd/app-android apk",
+    "debug:android": "npm run -w @srmd/app-android debug",
+    "typecheck": "npm run typecheck --workspace micromark-foam-placeholders && npm run -w @srmd/shared typecheck && npm run -w @srmd/app-vscode typecheck && npm run -w @srmd/app-android typecheck",
+    "compile:l10n": "node shared/l10n/scripts/compile.mjs",
+    "clean": "npm -ws --if-present run clean",
+    "test": "npm test --workspace micromark-foam-placeholders && npm test --workspace @srmd/shared --workspace @srmd/app-vscode --workspace @srmd/app-android --",
+    "test:shared": "npm test --workspace @srmd/shared --",
+    "test:vscode": "npm test --workspace @srmd/app-vscode --",
+    "test:android": "npm test --workspace @srmd/app-android --",
+    "parse": "node --import tsx shared/parser/tests/inspection.mjs",
+    "test:ui": "npm test --workspace @srmd/ui --",
+    "test:parser": "npm test --workspace @srmd/parser --",
+    "typecheck:parser": "npm run typecheck --workspace @srmd/parser",
+    "test:scheduler": "npm test --workspace @srmd/scheduler --",
+    "typecheck:scheduler": "npm run typecheck --workspace @srmd/scheduler",
+    "test:reviewer": "npm test --workspace @srmd/reviewer --",
+    "typecheck:reviewer": "npm run typecheck --workspace @srmd/reviewer",
+    "typecheck:ui": "npm run typecheck --workspace @srmd/ui",
+    "test:workspace": "npm test --workspace @srmd/workspace --",
+    "typecheck:workspace": "npm run typecheck --workspace @srmd/workspace"
+  },
+  "devDependencies": {
+    "esbuild": ">=0.28.2",
+    "tsx": ">=4.23.15",
+    "typescript": ">=7.0.2"
+  }
+}

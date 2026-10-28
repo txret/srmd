@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="webview_outdated">Enhetens WebView är för gammal för srmd. Uppdatera Android System WebView och öppna srmd igen.</string>
+</resources>
