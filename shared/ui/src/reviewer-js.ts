@@ -2,11 +2,19 @@ import type { UIConfig } from './config'
 import { Search } from './search'
 import { shortcut_matches } from './utils'
 
-/** A rating chosen in the reviewer, dispatched on its root as the `sr-event` custom event. */
-export type ReviewerEvent = {
-  type: 'choice'
-  /** Identifier of the chosen rating, as on its button's data-id. */
-  data: string
+/**
+ * What the reviewer reports, dispatched on its root as the `sr-event` custom event: a rating chosen, with the
+ * identifier on its button's data-id, or a wiki link followed, with the workspace path and fragment it points at, which
+ * the host opens.
+ */
+export type ReviewerEvent = { type: 'choice'; data: string } | { type: 'link'; data: string } | { type: 'search'; data: boolean }
+
+/** A mounted card's controls for its host. */
+export interface MountedCard {
+  /** Open or close the search of the note, as the card's own button and keys do. */
+  search(open: boolean): void
+  /** Stop observing the card's layout: call it before the card is replaced. */
+  unmount(): void
 }
 
 /**
@@ -58,15 +66,16 @@ function scroll_to_prompt(content: HTMLElement, first: HTMLElement): void {
 /**
  * Make the markup from compile_html() interactive for the card with this ordinal, marking its clozes `active`.
  * Call it in the same task that inserts the markup: the browser paints only between tasks, so no cloze shows
- * before it is hidden. Ratings are dispatched on root as `sr-event` custom events carrying a ReviewerEvent.
- * @returns Unmount: call it before the card is replaced, to stop observing its layout.
+ * before it is hidden. Ratings, followed wiki links and the search opening or closing are dispatched on root as
+ * `sr-event` custom events carrying a ReviewerEvent.
  */
-export function mount(root: HTMLElement, ordinal: number, config: UIConfig): () => void {
+export function mount(root: HTMLElement, ordinal: number, config: UIConfig): MountedCard {
   /*
    * 1. Mark the card's clozes `active` and hide the clozes for the front face: the active group always, inactive
    *    groups unless configured visible.
-   * 2. Handle clicks: rating and flip buttons, search, the title (reveal or hide all), the content's edges
-   *    (previous/next active cloze) and clozes themselves (reveal or hide one).
+   * 2. Handle clicks: rating and flip buttons, search, the title (reveal or hide all), wiki links shown (reported,
+   *    never followed in place), the content's edges (previous/next active cloze) and clozes themselves (reveal or
+   *    hide one).
    * 3. Handle the configured keyboard shortcuts, then focus the root and scroll to the first prompt.
    */
   /** Report a chosen rating to the host. */
@@ -98,6 +107,14 @@ export function mount(root: HTMLElement, ordinal: number, config: UIConfig): () 
     target.scrollIntoView({ behavior: 'auto', block: 'center', inline: 'nearest' })
   }
 
+  /** Open or close the search of the note, reporting the change. */
+  const set_search = (open: boolean): void => {
+    if (root.classList.contains('search') === open) return
+    root.classList.toggle('search', open)
+    if (open) searcher.focus()
+    root.dispatchEvent(new CustomEvent<ReviewerEvent>('sr-event', { detail: { type: 'search', data: open } }))
+  }
+
   /** Show the front or back face, or the other face when front is omitted; hidden clozes follow the face. */
   const flip = (front: boolean = root.classList.contains('back')): void => {
     /* Swap the face classes, re-hide every cloze for that face, then reset the current cloze and leave search. */
@@ -110,7 +127,7 @@ export function mount(root: HTMLElement, ordinal: number, config: UIConfig): () 
     }
     if (active_clozes.length) active_clozes[0].classList.add('current')
     else if (clozes.length) clozes[0].classList.add('current')
-    root.classList.remove('search')
+    set_search(false)
   }
 
   /** Reveal every cloze while any is hidden, otherwise hide them all. */
@@ -144,20 +161,21 @@ export function mount(root: HTMLElement, ordinal: number, config: UIConfig): () 
   root.addEventListener('click', event => {
     /* Search swallows a click outside its box; then buttons, the title, the content's edges and clozes act in turn. */
     const target = event.target as HTMLElement
-    if (root.classList.contains('search') && !target.closest('.footer .search')) {
-      root.classList.remove('search')
-      return
-    }
+    if (root.classList.contains('search') && !target.closest('.footer .search')) return set_search(false)
     // A click on a button's inner text, such as a choice's interval, belongs to that button.
     const button = target.closest<HTMLElement>('button')
     if (button?.classList.contains('flip-btn')) return flip()
-    if (button?.classList.contains('open-search-btn')) {
-      root.classList.add('search')
-      searcher.focus()
-      return
-    }
+    if (button?.classList.contains('open-search-btn')) return set_search(true)
     if (button?.classList.contains('choice-btn')) return choose(button.dataset.id!)
     if (target.classList.contains('title')) return toggle_all()
+    // A wiki link shown is the host's to open, even at the content's edge; one in a hidden cloze is part of the cloze.
+    const link = target.closest<HTMLAnchorElement>('a.foam-note-link, a.foam-placeholder-link')
+    if (link && !link.closest('.cloze.hide')) {
+      event.preventDefault()
+      if (link.dataset.href) root.dispatchEvent(new CustomEvent<ReviewerEvent>('sr-event', { detail: { type: 'link', data: link.dataset.href } }))
+      return
+    }
+    if (link) event.preventDefault()
     if (!content.contains(target)) return
 
     // A click within 30 px of the content's left or right edge steps through the active clozes.
@@ -181,7 +199,7 @@ export function mount(root: HTMLElement, ordinal: number, config: UIConfig): () 
     // Space and Enter activate a focused button natively: a focused Hard stays Hard rather than the default.
     if ((event.key === ' ' || event.key === 'Enter') && (event.target as HTMLElement).closest('button')) return
     if (shortcut_matches(event, 'escape') && root.classList.contains('search')) {
-      root.classList.remove('search')
+      set_search(false)
       event.stopImmediatePropagation()
       event.preventDefault()
       return
@@ -202,12 +220,7 @@ export function mount(root: HTMLElement, ordinal: number, config: UIConfig): () 
     } else if (shortcuts.back && shortcut_matches(event, shortcuts.back) && root.classList.contains('back')) {
       if (!event.repeat) flip(true)
     } else if (shortcuts.search && shortcut_matches(event, shortcuts.search)) {
-      if (!root.classList.contains('search')) {
-        root.classList.add('search')
-        searcher.focus()
-      } else {
-        root.classList.remove('search')
-      }
+      set_search(!root.classList.contains('search'))
     } else {
       return
     }
@@ -225,5 +238,5 @@ export function mount(root: HTMLElement, ordinal: number, config: UIConfig): () 
     if (active_clozes[0]) scroll_to_prompt(content, active_clozes[0])
   }
   focus_once()
-  return () => searcher.dispose()
+  return { search: set_search, unmount: () => searcher.dispose() }
 }

@@ -19,13 +19,7 @@ export function add_review_days(date: Date, days: number, rollover: number): Dat
 }
 
 /** Count review days between two instants using the supplied local rollover. */
-export function day_diff(left: Date, right: Date, rollover: number): number {
-  /* Subtract calendar indices rather than elapsed milliseconds to account for DST. */
-  return review_day(left, rollover) - review_day(right, rollover)
-}
-
-/** One numeric component of a compact timestamp, by its character range. */
-const component = (value: string, start: number, end: number): number => Number(value.slice(start, end))
+export const day_diff = (left: Date, right: Date, rollover: number): number => review_day(left, rollover) - review_day(right, rollover)
 
 /** Days of each month in a common year; February has a 29th in leap years. */
 const month_days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
@@ -41,10 +35,10 @@ export function is_valid_date(value: string): boolean {
    */
   if (value === '0') return true
   if (!/^\d{14}$/.test(value)) return false
-  const [year, month, day] = [component(value, 0, 4), component(value, 4, 6), component(value, 6, 8)]
+  const [year, month, day] = [Number(value.slice(0, 4)), Number(value.slice(4, 6)), Number(value.slice(6, 8))]
   const leap_day = month === 2 && year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0) ? 1 : 0
   return year >= 1 && month >= 1 && month <= 12 && day >= 1 && day <= month_days[month - 1] + leap_day &&
-    component(value, 8, 10) <= 23 && component(value, 10, 12) <= 59 && component(value, 12, 14) <= 59
+    Number(value.slice(8, 10)) <= 23 && Number(value.slice(10, 12)) <= 59 && Number(value.slice(12, 14)) <= 59
 }
 
 /** Decode a compact local timestamp checked by is_valid_date(); `0` means the date is unset. */
@@ -52,8 +46,8 @@ export function parse_date(value: string): Date | undefined {
   /* Handle the unset sentinel, then set local components; setFullYear keeps years below 100 as written. */
   if (value === '0') return undefined
   const date = new Date(0)
-  date.setFullYear(component(value, 0, 4), component(value, 4, 6) - 1, component(value, 6, 8))
-  date.setHours(component(value, 8, 10), component(value, 10, 12), component(value, 12, 14), 0)
+  date.setFullYear(Number(value.slice(0, 4)), Number(value.slice(4, 6)) - 1, Number(value.slice(6, 8)))
+  date.setHours(Number(value.slice(8, 10)), Number(value.slice(10, 12)), Number(value.slice(12, 14)), 0)
   return date
 }
 

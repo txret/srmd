@@ -1,5 +1,6 @@
 \.*
 !/.gitignore
+!/.gitmodules
 !.vscode/
 .vscode/*
 !.vscode/launch.json

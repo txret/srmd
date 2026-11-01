@@ -31,16 +31,15 @@ Text [:2] more, \\[:3] and \`[:4]\`.
 
     [:5]
 `.slice(1))
-  assert.equal(render(mixed.events), `
+  assert.equal(render(mixed), `
 <h1>Title [:1]</h1>
 <p>Text  more, [:3] and <code>[:4]</code>.</p>
 <pre><code>[:5]
-</code></pre>
-`.slice(1))
+</code></pre>`.slice(1))
   assert.deepEqual(mixed.references.map(reference => reference.ref), [2])
 
   // The backslash escapes the first bracket only.
-  assert.equal(render(parse('Q:: answer \\[:1][:2]').events),
+  assert.equal(render(parse('Q:: answer \\[:1][:2]')),
     '<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">answer [:1]</span></p>')
 
   const code = `
@@ -50,7 +49,7 @@ Literal \`code[:1]\` and \\[:2]
 [:3]: n 0 0 0 0 0 0 0 0
 \`\`\``.slice(1)
   const in_code = parse(code)
-  assert.equal(render(in_code.events), `
+  assert.equal(render(in_code), `
 <p>Literal <code>code[:1]</code> and [:2]</p>
 <pre><code class="language-md">[:3]: n 0 0 0 0 0 0 0 0
 </code></pre>`.slice(1))
@@ -65,12 +64,12 @@ Q::
 [:8]: k 20261012040000 7 20261005120000 8.5 4.2 0 10 1
 `.slice(1))
   assert.equal(card_lines(code_answer), '[:-1]: n 0 0 0 0 0 0 0 0')
-  assert.equal(render(code_answer.events), `
+  assert.equal(render(code_answer), `
 <p>Q:</p>
 <div class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">
 <pre><code>answer[:8]
-</code></pre></div>
-`.slice(1))
+</code></pre>
+</div>`.slice(1))
   assert.equal(serialize(code_answer, code_answer.scheduling), `
 Q::
 
@@ -89,7 +88,7 @@ export function test_a_definition_label_starting_a_line_is_never_a_reference() {
 
 Q:: a[:4]: b
 `.slice(1))
-  assert.equal(render(parsed.events), `
+  assert.equal(render(parsed), `
 <p>[:1]: k nope</p>
 <ul>
 <li>[:2]: k nope</li>
@@ -97,8 +96,7 @@ Q:: a[:4]: b
 <blockquote>
 <p>[:3]: k nope</p>
 </blockquote>
-<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">a: b</span></p>
-`.slice(1))
+<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">a: b</span></p>`.slice(1))
   assert.deepEqual(parsed.references.map(reference => reference.ref), [4])
 }
 
@@ -113,15 +111,16 @@ x
 [:2] [:1]
 [:3] text
 `.slice(1))
-  assert.equal(render(parsed.events), `
+  assert.equal(render(parsed), `
 <p>Q:</p>
 <div class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">
 <pre><code>x
-</code></pre></div>
-<p> text</p>
-`.slice(1))
-  // Each reference as [identifier, whether it stands on a reference line].
-  assert.deepEqual(parsed.references.map(reference => [reference.ref, !!reference.line]), [[2, true], [1, true], [3, false]])
+</code></pre>
+</div>
+<p> text</p>`.slice(1))
+  // Each reference as [identifier, position]: the reference line follows the code block, the block cloze's last block;
+  // the reference starting the paragraph follows nothing a card's reference can.
+  assert.deepEqual(parsed.references.map(reference => [reference.ref, reference.key]), [[2, 'l5'], [1, 'l5'], [3, undefined]])
 }
 
 /**
@@ -131,21 +130,21 @@ x
 export function test_hidden_references_leave_the_whitespace_around_them() {
   assert.equal(render(parse(`
 Q:: answer  [:1]
-next`.slice(1)).events), `
+next`.slice(1))), `
 <p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">answer \x20
 next</span></p>`.slice(1))
 
   assert.equal(render(parse(`
 Q:: answer[:1]\x20\x20
-next`.slice(1)).events), `
-<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">answer</span><br />
+next`.slice(1))), `
+<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">answer</span><br>
 next</p>`.slice(1))
 
   assert.equal(render(parse(`
 :: first
 second[:1]\x20\x20
 
-next`.slice(1)).events), `
+next`.slice(1))), `
 <p>: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">first
 second</span></p>
 <p>next</p>`.slice(1))
@@ -153,15 +152,14 @@ second</span></p>
   assert.equal(render(parse(`
 \x20\x20
 Q:: answer[:1]\t\x20
-`.slice(1)).events), `
-<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">answer</span></p>
-`.slice(1))
+`.slice(1))), `
+<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">answer</span></p>`.slice(1))
 
-  assert.equal(render(parse('Q:: ends\\ [:1]').events),
+  assert.equal(render(parse('Q:: ends\\ [:1]')),
     '<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">ends\\ </span></p>')
   assert.equal(render(parse(`
 Q:: ends\\ [:1]
-next`.slice(1)).events), `
+next`.slice(1))), `
 <p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">ends\\\x20
 next</span></p>`.slice(1))
 }
@@ -175,7 +173,7 @@ export function test_a_reference_changes_no_markdown_structure_around_it() {
 Q::[:1]
 
 answer`.slice(1))
-  assert.equal(render(opener.events), `
+  assert.equal(render(opener), `
 <p>Q::</p>
 <p>answer</p>`.slice(1))
   assert.deepEqual(opener.scheduling, [])
@@ -190,34 +188,34 @@ answer
 
 [:7]: ! 0 0 0 0 0 0 0 0`.slice(1))
   assert.equal(card_lines(fence), '[:-1]: n 0 0 0 0 0 0 0 0')
-  assert.equal(render(fence.events), `
+  assert.equal(render(fence), `
 <p>Q:</p>
 <div class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">
 <pre><code class="language-txt">answer
 \`\`\`[:7]
 
-[:7]: ! 0 0 0 0 0 0 0 0
-</code></pre>
+[:7]: ! 0 0 0 0 0 0 0 0</code></pre>
 </div>`.slice(1))
 
   assert.equal(render(parse(`
 Q::
 
 - one
-- two[:1]`.slice(1)).events), `
+- two[:1]`.slice(1))), `
 <p>Q:</p>
 <div class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">
 <ul>
 <li>one</li>
 <li>two</li>
-</ul></div>`.slice(1))
+</ul>
+</div>`.slice(1))
 
   assert.equal(render(parse(`
 Q::
 
 | A | B |
 | - | - |
-| x | y |[:1]`.slice(1)).events), `
+| x | y |[:1]`.slice(1))), `
 <p>Q:</p>
 <div class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">
 <table>
@@ -233,7 +231,8 @@ Q::
 <td>y</td>
 </tr>
 </tbody>
-</table></div>`.slice(1))
+</table>
+</div>`.slice(1))
 }
 
 /** A block cloze ending in code owns a reference line after the code, or after one blank line, not two. */
@@ -327,9 +326,8 @@ some::> cloze <::  [:2]
 [:2]: l 0 0 0 0 0 0 1 0
 `.slice(1))
   assert.equal(card_lines(parsed), '[:2]: l 0 0 0 0 0 0 1 0')
-  assert.equal(render(parsed.events), `
-<p>some<span class="cloze" data-ordinal="1" data-card="[:2]: l 0 0 0 0 0 0 1 0"> cloze </span>  </p>
-`.slice(1))
+  assert.equal(render(parsed), `
+<p>some<span class="cloze" data-ordinal="1" data-card="[:2]: l 0 0 0 0 0 0 1 0"> cloze </span>  </p>`.slice(1))
   assert.equal(serialize(parsed, parsed.scheduling), `
 some::> cloze <::  [:1]
 
@@ -338,13 +336,13 @@ some::> cloze <::  [:1]
 }
 
 /**
- * In a table cell and in emphasis, an inline cloze's reference goes inside the element ending the cloze: before the
- * delimiter closing emphasis that ends it, after delimiters closing emphasis within its answer.
+ * An implicit inline cloze's reference goes at its syntactical end, the end of its table cell's or paragraph's text,
+ * also when it opened in emphasis, which ends its rendering earlier, or before the hard break ending it.
  */
 export function test_an_inline_cloze_reference_inside_cells_and_emphasis() {
   assert.equal(first_card('| Q:: answer[:1] |\n| - |'), owner)
-  assert.equal(first_card('*Q:: answer[:1]*'), owner)
-  assert.equal(first_card('*Q:: answer*[:1]'), not_owner)
+  assert.equal(first_card('*Q:: answer*[:1]'), owner)
+  assert.equal(first_card('*Q:: answer[:1]*'), not_owner)
   assert.equal(first_card('Q:: an ~~*answer*~~[:1]'), owner)
   assert.equal(first_card('*Q:: answer  \nmore*[:1]'), not_owner)
 }
@@ -424,10 +422,9 @@ Q:; second[:9]
 [:9]: n 0 0 0 0 0 0 0 0
 `.slice(1))
   assert.equal(card_lines(over_first), '[:8]: l 20261010120100 0 20261010120000 2.3 5 1 2 0')
-  assert.equal(render(over_first.events), `
+  assert.equal(render(over_first), `
 <p>Q: <span class="cloze" data-ordinal="1" data-card="[:8]: l 20261010120100 0 20261010120000 2.3 5 1 2 0">first</span></p>
-<p>Q: <span class="cloze" data-ordinal="1" data-card="[:8]: l 20261010120100 0 20261010120000 2.3 5 1 2 0">second</span></p>
-`.slice(1))
+<p>Q: <span class="cloze" data-ordinal="1" data-card="[:8]: l 20261010120100 0 20261010120000 2.3 5 1 2 0">second</span></p>`.slice(1))
   assert.equal(serialize(over_first, over_first.scheduling), `
 Q:: first[:1]
 
@@ -543,10 +540,9 @@ Q:: early[:8] tail
 [:8]: k 20261012040000 7 20261005120000 8.5 4.2 0 10 1
 `.slice(1))
   assert.equal(card_lines(parsed), '[:-1]: n 0 0 0 0 0 0 0 0')
-  assert.equal(render(parsed.events), `
+  assert.equal(render(parsed), `
 <p>Stray</p>
-<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">early tail</span></p>
-`.slice(1))
+<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">early tail</span></p>`.slice(1))
   assert.equal(serialize(parsed, parsed.scheduling), `
 Stray
 
@@ -592,9 +588,8 @@ Q::>before **inside<::[:7] after<::** outside
 
 [:7]: l 0 0 0 0 0 0 1 0`.slice(1))
   assert.equal(card_lines(delayed), '[:7]: l 0 0 0 0 0 0 1 0')
-  assert.equal(render(delayed.events), `
-<p>Q<span class="cloze" data-ordinal="1" data-card="[:7]: l 0 0 0 0 0 0 1 0">before <strong>inside after&lt;::</strong></span> outside</p>
-`.slice(1))
+  assert.equal(render(delayed), `
+<p>Q<span class="cloze" data-ordinal="1" data-card="[:7]: l 0 0 0 0 0 0 1 0">before <strong>inside after&lt;::</strong></span> outside</p>`.slice(1))
 
   // The paragraph ends the cloze before its closer; the reference at that end stays owned.
   const early = parse(`
@@ -607,10 +602,9 @@ Q::>first[:7]
   const saved = serialize(early, early.scheduling)
   const reloaded = parse(saved)
   assert.equal(card_lines(reloaded), '[:1]: l 0 0 0 0 0 0 1 0')
-  assert.equal(render(reloaded.events), `
+  assert.equal(render(reloaded), `
 <p>Q<span class="cloze" data-ordinal="1" data-card="[:1]: l 0 0 0 0 0 0 1 0">first</span></p>
-<p>&lt;::</p>
-`.slice(1))
+<p>&lt;::</p>`.slice(1))
   assert.equal(serialize(reloaded, reloaded.scheduling), saved)
 }
 

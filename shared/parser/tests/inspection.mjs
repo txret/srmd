@@ -6,10 +6,10 @@ import { parse, serialize, render } from '../src/index.ts'
 const help = `Usage: npm run inspect -- [options] [note.md|-]
 
 Read a note from a file or stdin. The default report shows parse() and render() without normalization.
-  --json            Report as JSON, including live-event snapshots
+  --json            Report as JSON, including the srmd records
   --serialize       Also preview serialization and a reparse of its output
   --source          Only serialized Markdown (explicit normalization)
-  --html            Only HTML compiled from the original parsed event stream
+  --html            Only HTML rendered from the original parse
   --help            Show this help
 
 Files are read only. Redirect --source explicitly to save a normalized copy.
@@ -57,43 +57,37 @@ try {
   const parsed = parse(source)
   // Single-output modes omit all report headings, making redirection usable.
   if (mode === 'source') process.stdout.write(serialize(parsed, parsed.scheduling))
-  else if (mode === 'html') process.stdout.write(render(parsed.events))
+  else if (mode === 'html') process.stdout.write(render(parsed))
   else {
     /**
-     * Make inspectable JSON instead of serializing tokenizer contexts (which
-     * contain parser state/functions). This snapshot cannot be fed to render().
-     * text is a source slice; rendered_text is what an opener renders.
-     * @param note - A live result from parse().
-     * @returns Original source, scheduling, event snapshots and rendered HTML.
+     * Make inspectable JSON of a parse: its source, scheduling and srmd records, each with its range and text in the
+     * parsed text, rather than markdown-it's tokens, which hold the instance. This snapshot cannot be fed to render().
+     * @param note - A result from parse().
+     * @returns Original source, scheduling, records and rendered HTML.
      */
-    const snapshot = note =>
+    const snapshot = note => {
       /*
        * 1. Retain the note's source and stored scheduling.
-       * 2. Replace live event contexts with inspectable token positions, source slices
-       *    and cloze/card annotations.
-       * 3. Render the live events and include their HTML alongside the snapshot.
+       * 2. List each record kind in text order: clozes with their card ordinals, markers, references with their
+       *    identifiers and positions, definitions, and each card's position and insertion.
+       * 3. Render the parse and include its HTML alongside.
        */
-      ({
+      const range = record => ({
+        start: record.start.offset, end: record.end.offset, text: note.text.slice(record.start.offset, record.end.offset)
+      })
+      return {
         source: note.source,
         scheduling: note.scheduling,
-        events: note.events.map(([kind, token]) =>
-          /*
-           * 1. Copy the event kind, token type, source positions and original source slice.
-           * 2. Include the token's ordinal, reference, replacement text and scheduling only
-           *    when those annotations exist.
-           */
-          ({
-            kind, type: token.type,
-            start: { offset: token.start.offset, line: token.start.line, column: token.start.column },
-            end: { offset: token.end.offset, line: token.end.line, column: token.end.column },
-            text: note.source.slice(token.start.offset, token.end.offset),
-            ...(token._ordinal === undefined ? {} : { card_ordinal: token._ordinal }),
-            ...(token.type === 'cardReference' ? { ref: token.ref } : {}),
-            ...(token._value === undefined ? {} : { rendered_text: token._value }),
-            ...(token._scheduling === undefined ? {} : { scheduling: token._scheduling })
-          })),
-        html: render(note.events)
-      })
+        records: [
+          ...note.clozes.map(cloze => ({ kind: `${cloze.kind} cloze`, ...range(cloze), card: cloze.ordinal })),
+          ...note.markers.map(marker => ({ kind: 'marker', ...range(marker) })),
+          ...note.references.map(reference => ({ kind: 'reference', ...range(reference), ref: reference.ref, position: reference.key })),
+          ...note.definitions.map(definition => ({ kind: 'definition', ...range(definition), ref: definition.scheduling.ref }))
+        ].sort((left, right) => left.start - right.start || right.end - left.end),
+        cards: note.groups.map(group => ({ card: group.ordinal, position: group.key, insertion: group.insertion, ref: group.reference?.ref })),
+        html: render(note)
+      }
+    }
     const report = { parse: snapshot(parsed) }
     // Serialization and its diagnostic reparse are opt-in work, never required
     // for simply loading or rendering a note. The CLI still never writes files.
@@ -108,13 +102,16 @@ try {
         const result = report[stage]
         process.stdout.write(`\n=== ${stage}(): Markdown ===\n${result.source}\n`)
         process.stdout.write(`\n=== ${stage}(): scheduling ===\n${JSON.stringify(result.scheduling, null, 2)}\n`)
-        process.stdout.write(`\n=== ${stage}(): events ===\n`)
-        for (const event of result.events) {
-          // Print half-open source ranges; enter/exit lines share token bounds.
-          const card = event.card_ordinal === undefined ? '' : ` card=${event.card_ordinal}`
-          const reference = event.ref === undefined ? '' : ` ref=${event.ref}`
-          process.stdout.write(`${event.kind.padEnd(5)} ${event.type} [${event.start.offset}, ${event.end.offset})${card}${reference} ${JSON.stringify(event.text)}\n`)
+        process.stdout.write(`\n=== ${stage}(): records ===\n`)
+        for (const record of result.records) {
+          // Print half-open source ranges.
+          const card = record.card === undefined ? '' : ` card=${record.card}`
+          const reference = record.ref === undefined ? '' : ` ref=${record.ref}`
+          const position = record.position === undefined ? '' : ` position=${record.position}`
+          process.stdout.write(`${record.kind} [${record.start}, ${record.end})${card}${reference}${position} ${JSON.stringify(record.text)}\n`)
         }
+        process.stdout.write(`\n=== ${stage}(): cards ===\n`)
+        for (const card of result.cards) process.stdout.write(`${JSON.stringify(card)}\n`)
         process.stdout.write(`\n=== render(${stage}): HTML ===\n${result.html}\n`)
       }
       if (report.serialize) process.stdout.write(`\nSerialization changes source: ${report.serialize.changed}\n`)

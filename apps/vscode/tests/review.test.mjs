@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { readFileSync } from 'node:fs'
 import { setTimeout as delay } from 'node:timers/promises'
-import { start_host, uri, wait_until } from './host.mjs'
+import { markdown_extension, start_host, uri, wait_until } from './host.mjs'
 import * as tests from './review.test.mjs'
 
 /** Two notes for choosing what to review: in topic/a.sr.md the due second group is served before the new first group. */
@@ -210,7 +210,8 @@ Q:: answer`.slice(1)
 }
 
 /**
- * Workspace review preserves note whitespace, hides ids, and resolves relative images.
+ * Workspace review preserves note whitespace, hides ids, and resolves relative images. Notes render with the options
+ * VS Code's Markdown preview starts from, so as HTML: `<br>` and `<img>` are not closed as XHTML closes them.
  */
 export async function test_a_review_keeps_the_note_whitespace_and_resolves_relative_images(t) {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-24T12:00:00+02:00') })
@@ -295,8 +296,9 @@ New:: answer`.slice(1))
 
 /**
  * Review selection and saves keep sparse references separate from card ordinals.
- * Review an existing card followed by two implicit new cards, checking each displayed ordinal and save. New
- * definitions join the last root-level definition, here at the top of the note, and that block is sorted.
+ * Review an existing card followed by two implicit new cards, checking each displayed ordinal and save; a card shown
+ * after a save shows the references the save numbered, as the note is read anew. New definitions join the last
+ * root-level definition, here at the top of the note, and that block is sorted.
  */
 export async function test_reviews_keep_sparse_references_separate_from_card_ordinals(t) {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-15T12:00:00+02:00') })
@@ -357,11 +359,11 @@ Fresh:: third[:3]
   assert.equal(host.files.get('/workspace/topic/a.sr.md').text, expected)
   assert.deepEqual(host.state.nodes['topic/a.sr.md'].cards, [
     {
-      ref: -1, state: 'k', due: '20261016040000', scheduled_days: 1, last_review: '20261015120000', stability: 2.3065,
+      ref: 1, state: 'k', due: '20261016040000', scheduled_days: 1, last_review: '20261015120000', stability: 2.3065,
       difficulty: 2.11810397, learning_steps: 0, reps: 1, lapses: 0, ordinal: 1
     },
     {
-      ref: 42, state: 'k', due: '20261016040000', scheduled_days: 1, last_review: '20261015120000', stability: 8.5,
+      ref: 2, state: 'k', due: '20261016040000', scheduled_days: 1, last_review: '20261015120000', stability: 8.5,
       difficulty: 4.2, learning_steps: 0, reps: 11, lapses: 1, ordinal: 2
     },
     {
@@ -513,28 +515,53 @@ Q:: answer[:1]
 }
 
 /**
- * The optional extensions the settings turn on parse and render notes: with the Foam placeholders an anchor is
- * hidden and a wiki link is text, without them both stay as written.
+ * Like Foam's wiki links, which Foam's markdown-it plugin finds in text once inline parsing is done: `[[note|label]]`
+ * in a text becomes a link to `topic/note.md` with the label, written as Foam writes it.
  */
-export async function test_optional_extensions_the_settings_turn_on_render_notes(t) {
+const wiki_links = md => md.core.ruler.push('wiki_links', state => {
+  /* Split every text token at its wiki links, each of which becomes HTML, as Foam's plugin replaces them. */
+  for (const token of state.tokens.filter(token => token.type === 'inline')) {
+    token.children = token.children.flatMap(child => child.type !== 'text' ? [child]
+      : child.content.split(/(\[\[[^\]|]+\|[^\]]+\]\])/).filter(part => part).map(part => {
+        const link = /^\[\[([^\]|]+)\|([^\]]+)\]\]$/.exec(part)
+        const piece = new state.Token(link ? 'html_inline' : 'text', '', 0)
+        piece.content = link
+          ? `<a class="foam-note-link" title="${link[1]}" href="/topic/${link[1]}.md" data-href="/topic/${link[1]}.md">${link[2]}</a>`
+          : part
+        return piece
+      }))
+  }
+})
+
+/**
+ * A review shows what other extensions add to VS Code's Markdown preview, such as Foam's wiki links, and a link clicked
+ * in the card opens its file beside the review rather than in the webview. Without such an extension, a wiki link is
+ * text.
+ */
+export async function test_reviews_show_other_extensions_syntax_and_open_linked_files(t) {
   /** The note's HTML in a card's markup, between the content div's tags. */
   const note_html = markup => markup.split('<div class="content">')[1].split('</div>\n  <div class="footer">')[0]
+  const notes = { 'topic/a.sr.md': 'Q:: see [[note|the note]]\n', 'topic/note.md': '# Note\n' }
+  const host = await start_host(t, notes, {}, 'en', [markdown_extension('foam.foam-vscode', wiki_links)])
+  const review = host.review()
+  await wait_until(() => host.panel?.document)
+  assert.equal(note_html(host.panel.cards[0].markup), `
+<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">see <a class="foam-note-link" title="note" href="/topic/note.md" data-href="/topic/note.md">the note</a></span></p>`.slice(1))
+  // The card's back shows the answer, and the link in it.
+  host.panel.document.root.classList.remove('front')
+  assert.equal(host.panel.document.click_link(0), true)
+  await wait_until(() => host.opened.length)
+  assert.deepEqual(host.opened.map(({ path, options }) => [path, options]), [['/workspace/topic/note.md', { viewColumn: -2, preview: false }]])
+  host.panel.dispose()
+  await review
 
-  const with_foam = await start_host(t, 'Q:: [[note|the note]] ^id', { extensions: ['foam-placeholders'] })
-  const with_foam_review = with_foam.review()
-  await wait_until(() => with_foam.panel?.document)
-  assert.equal(note_html(with_foam.panel.cards[0].markup),
-    '<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">the note: note </span></p>')
-  with_foam.panel.dispose()
-  await with_foam_review
-
-  const without = await start_host(t, 'Q:: [[note|the note]] ^id', { extensions: [] })
-  const without_review = without.review()
-  await wait_until(() => without.panel?.document)
-  assert.equal(note_html(without.panel.cards[0].markup),
-    '<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">[[note|the note]] ^id</span></p>')
-  without.panel.dispose()
-  await without_review
+  const plain = await start_host(t, notes, {})
+  const plain_review = plain.review()
+  await wait_until(() => plain.panel?.document)
+  assert.equal(note_html(plain.panel.cards[0].markup), `
+<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">see [[note|the note]]</span></p>`.slice(1))
+  plain.panel.dispose()
+  await plain_review
 }
 
 // Run every test_ function above as a test named after it.

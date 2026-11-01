@@ -39,29 +39,26 @@ export async function test_enter_reviews_the_selected_row(t) {
 }
 
 /**
- * Review from the Command Palette lists the scopes with cards and their counts, narrowed fuzzily as you type.
- * Open the pick, compare its rows, type part of a path, then accept the remaining row.
+ * Review from the Command Palette lists the scopes with cards and their counts, which VS Code narrows as you type.
+ * Open the pick, compare its rows, then accept one.
  */
-export async function test_the_command_palette_lists_the_scopes_with_cards_narrowed_as_you_type(t) {
+export async function test_the_command_palette_lists_the_scopes_with_cards(t) {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-15T12:00:00+02:00') })
   const host = await start_host(t, row_notes, {})
   const pending = host.palette_review()
+  await wait_until(() => host.quick_pick)
   const pick = host.quick_pick
-  assert.equal(pick.shown, true)
-  assert.equal(pick.placeholder, 'Choose a note or folder to review')
+  assert.deepEqual(pick.options, { placeHolder: 'Choose a note or folder to review' })
   assert.deepEqual(pick.items, [
-    { label: '$(root-folder) workspace', description: 'd1 • n2 • l0', path: '', alwaysShow: true },
-    { label: '$(folder) other', description: 'd0 • n1 • l0', path: 'other', alwaysShow: true },
-    { label: '$(file) other/c.sr.md', description: 'd0 • n1 • l0', path: 'other/c.sr.md', alwaysShow: true },
-    { label: '$(folder) topic', description: 'd1 • n1 • l0', path: 'topic', alwaysShow: true },
-    { label: '$(file) topic/a.sr.md', description: 'd1 • n1 • l0', path: 'topic/a.sr.md', alwaysShow: true }
+    { label: '$(root-folder) workspace', description: 'd1 • n2 • l0', path: '' },
+    { label: '$(folder) other', description: 'd0 • n1 • l0', path: 'other' },
+    { label: '$(file) other/c.sr.md', description: 'd0 • n1 • l0', path: 'other/c.sr.md' },
+    { label: '$(folder) topic', description: 'd1 • n1 • l0', path: 'topic' },
+    { label: '$(file) topic/a.sr.md', description: 'd1 • n1 • l0', path: 'topic/a.sr.md' }
   ])
-  pick.type('tpa')
-  assert.deepEqual(pick.items.map(item => item.path), ['topic/a.sr.md'])
-  pick.accept(0)
+  pick.accept(4)
   await wait_until(() => host.panel?.document)
   assert.deepEqual(host.panels, ['Review: a.sr.md'])
-  assert.deepEqual([pick.shown, pick.disposed], [false, true])
   host.panel.dispose()
   await pending
 }
@@ -72,10 +69,10 @@ export async function test_the_command_palette_lists_the_scopes_with_cards_narro
 export async function test_dismissing_the_command_palette_pick_reviews_nothing(t) {
   const host = await start_host(t, row_notes, {})
   const pending = host.palette_review()
+  await wait_until(() => host.quick_pick)
   host.quick_pick.hide()
   await pending
   assert.deepEqual(host.panels, [])
-  assert.equal(host.quick_pick.disposed, true)
 }
 
 /**

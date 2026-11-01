@@ -7,13 +7,9 @@
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
-    "composite": true,
-    "incremental": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true
   }
 }

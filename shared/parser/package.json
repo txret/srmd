@@ -10,20 +10,7 @@
     "inspect": "node --import tsx tests/inspection.mjs"
   },
   "dependencies": {
-    "mdast-util-from-markdown": ">=2.1.0",
-    "mdast-util-frontmatter": ">=2.0.1",
-    "mdast-util-gfm": ">=3.1.0",
-    "mdast-util-gfm-table": ">=2.0.0",
-    "mdast-util-to-markdown": ">=2.2.1",
-    "micromark": ">=4.0.3",
-    "micromark-extension-frontmatter": ">=2.0.0",
-    "micromark-extension-gfm": ">=3.0.0",
-    "micromark-factory-space": ">=2.1.0",
-    "micromark-util-character": ">=2.1.1",
-    "micromark-util-combine-extensions": ">=2.0.1"
-  },
-  "devDependencies": {
-    "micromark-foam-placeholders": "*"
+    "markdown-it": ">=14.3.2"
   },
   "type": "module"
 }

@@ -32,7 +32,7 @@ async function main(): Promise<void> {
     main: by_id('main'), view: by_id('view'), review: by_id('review'), editor: by_id('editor'), empty: by_id('empty'),
     note_search: by_id('note-search'), handle: by_id('handle'), scrim: by_id('scrim'), drawer: by_id('drawer'),
     tree: by_id('tree'), library_search: by_id<HTMLInputElement>('library-search'), toggle: by_id<HTMLButtonElement>('toggle'),
-    format: by_id<HTMLButtonElement>('format'), review_shown: by_id<HTMLButtonElement>('review-shown'),
+    review_shown: by_id<HTMLButtonElement>('review-shown'),
     open_settings: by_id<HTMLButtonElement>('open-settings'),
     settings: by_id('settings'), dialog: by_id('dialog'), toast: by_id('toast')
   }

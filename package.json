@@ -8,7 +8,6 @@
     "url": "https://github.com/txret/foam-sr.git"
   },
   "workspaces": [
-    "extensions/*",
     "shared",
     "shared/*",
     "apps/*"
@@ -20,10 +19,10 @@
     "build:android": "npm run -w @srmd/app-android build",
     "apk": "npm run -w @srmd/app-android apk",
     "debug:android": "npm run -w @srmd/app-android debug",
-    "typecheck": "npm run typecheck --workspace micromark-foam-placeholders && npm run -w @srmd/shared typecheck && npm run -w @srmd/app-vscode typecheck && npm run -w @srmd/app-android typecheck",
+    "typecheck": "npm run -w @srmd/shared typecheck && npm run -w @srmd/app-vscode typecheck && npm run -w @srmd/app-android typecheck",
     "compile:l10n": "node shared/l10n/scripts/compile.mjs",
     "clean": "npm -ws --if-present run clean",
-    "test": "npm test --workspace micromark-foam-placeholders && npm test --workspace @srmd/shared --workspace @srmd/app-vscode --workspace @srmd/app-android --",
+    "test": "npm test --workspace @srmd/shared --workspace @srmd/app-vscode --workspace @srmd/app-android --",
     "test:shared": "npm test --workspace @srmd/shared --",
     "test:vscode": "npm test --workspace @srmd/app-vscode --",
     "test:android": "npm test --workspace @srmd/app-android --",

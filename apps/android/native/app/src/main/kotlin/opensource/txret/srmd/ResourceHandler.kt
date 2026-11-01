@@ -13,11 +13,25 @@ import java.io.IOException
  * app under /app/ and the notes folder's files under /notes/. Both run on the WebView's loading threads.
  */
 
+/** The web app's page, which the WebView loads at start. */
+val APP_PAGE = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}/app/index.html"
+
+/**
+ * Whether the WebView may load [url] as its page: the web app's page alone. The page renders the HTML notes hold, and
+ * its origin also serves the notes folder, so a note could otherwise point the page at an HTML file of the folder, whose
+ * scripts would run with the bridge, which listens to the origin.
+ */
+fun isAppPage(url: String): Boolean = url == APP_PAGE
+
 /** Types of the web app's files and of common note resources that Android's own table may lack. */
 private val knownTypes = mapOf(
     "html" to "text/html", "js" to "text/javascript", "css" to "text/css", "map" to "application/json",
     "svg" to "image/svg+xml", "webp" to "image/webp", "md" to "text/markdown"
 )
+
+/** An empty response with an HTTP [status] and its [reason], such as for a file that cannot be read. */
+fun emptyResponse(status: Int, reason: String): WebResourceResponse =
+    WebResourceResponse("text/plain", "utf-8", status, reason, emptyMap(), ByteArrayInputStream(ByteArray(0)))
 
 /** The MIME type for a file name's extension, or a generic binary type. */
 fun mimeType(path: String): String {
@@ -45,6 +59,6 @@ class ResourceHandler(private val storage: NoteStorage, private val resolver: Co
         val stream = resolver.openInputStream(storage.document(path)) ?: throw IOException("Cannot open $path")
         WebResourceResponse(mimeType(path), null, stream)
     } catch (_: Exception) {
-        WebResourceResponse("text/plain", "utf-8", 404, "Not Found", emptyMap(), ByteArrayInputStream(ByteArray(0)))
+        emptyResponse(404, "Not Found")
     }
 }

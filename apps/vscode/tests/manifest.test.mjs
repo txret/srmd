@@ -101,28 +101,6 @@ export function test_every_manifest_text_has_an_english_text_and_translations() 
 }
 
 /**
- * The formatting settings offer the values of the shared formatting options, with their defaults: line breaks and
- * emphasis as written, a line width of at least 20, numbers counting up, `-` bullets and compact table delimiters.
- */
-export function test_the_formatting_settings_offer_the_formatting_options() {
-  const { properties } = JSON.parse(readFileSync(`${import.meta.dirname}/../package.json`, 'utf8')).contributes.configuration
-  /** An enumerated setting whose values each have a text, `%config.format.<key>.<value>%`. */
-  const choice = (key, values, fallback) => ({
-    type: 'string', enum: values, enumDescriptions: values.map(value => `%config.format.${key}.${value}%`), default: fallback,
-    description: `%config.format.${key}%`
-  })
-  assert.deepEqual(Object.fromEntries(Object.entries(properties).filter(([name]) => name.startsWith('srmd.format.'))), {
-    'srmd.format.wrap': choice('wrap', ['preserve', 'always', 'never'], 'preserve'),
-    'srmd.format.lineWidth': { type: 'integer', minimum: 20, default: 80, description: '%config.format.lineWidth%' },
-    'srmd.format.numbering': choice('numbering', ['increment', 'repeat'], 'increment'),
-    'srmd.format.bullet': { type: 'string', enum: ['-', '*', '+'], default: '-', description: '%config.format.bullet%' },
-    'srmd.format.tableDelimiters': choice('tableDelimiters', ['compact', 'padded'], 'compact'),
-    'srmd.format.emphasis': choice('emphasis', ['preserve', 'asterisk', 'underscore'], 'preserve'),
-    'srmd.format.strong': choice('strong', ['preserve', 'asterisk', 'underscore'], 'preserve')
-  })
-}
-
-/**
  * The manifest gives the Markdown preview the plugin activation exports and the stylesheet outlining clozes.
  * VS Code's preview activates the extension for its plugin and loads the stylesheet after its own.
  */

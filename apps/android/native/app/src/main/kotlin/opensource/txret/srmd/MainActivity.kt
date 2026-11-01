@@ -87,7 +87,7 @@ class MainActivity : ComponentActivity(), Host {
             updateInsets(windowInsets)
             windowInsets
         }
-        webView.loadUrl("https://${WebViewAssetLoader.DEFAULT_DOMAIN}/app/index.html")
+        webView.loadUrl(APP_PAGE)
     }
 
     /**
@@ -115,13 +115,22 @@ class MainActivity : ComponentActivity(), Host {
             .addPathHandler("/notes/", ResourceHandler(storage, contentResolver))
             .build()
         view.webViewClient = object : WebViewClientCompat() {
+            /**
+             * The origin's files, but as the page only the web app's (isAppPage()): a page load the WebView does not
+             * offer shouldOverrideUrlLoading(), such as a form's POST, gets an empty page instead of a note's file.
+             */
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? =
-                loader.shouldInterceptRequest(request.url)
+                if (request.isForMainFrame && !isAppPage(request.url.toString())) emptyResponse(403, "Forbidden")
+                else loader.shouldInterceptRequest(request.url)
 
-            /** The page only ever reloads itself; any other URL opens outside the app. */
+            /**
+             * The page loads only itself again, as when it reloads; the web app opens links itself. Any other address
+             * of the app's origin is refused (see isAppPage()), and other URLs open outside the app.
+             */
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
-                if (request.url.host == WebViewAssetLoader.DEFAULT_DOMAIN) return false
-                openUrl(request.url.toString())
+                val url = request.url.toString()
+                if (isAppPage(url)) return false
+                if (request.url.host != WebViewAssetLoader.DEFAULT_DOMAIN) openUrl(url)
                 return true
             }
         }

@@ -2,12 +2,7 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2022", "DOM"],
-    "composite": false,
-    "incremental": false,
-    "declaration": false,
-    "declarationMap": false,
-    "types": ["node", "vscode"],
-    "noEmit": true
+    "types": ["node", "vscode"]
   },
   "include": ["src/**/*.ts"]
 }

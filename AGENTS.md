@@ -6,14 +6,15 @@ The repo architecture is specified in ARCHITECTURE.md - read it before editing.
 
 The portable code belongs in `shared/`. Platform hosts should remain small adapters for file access, configuration, resource URLs, and the review surface. Bundle runtime dependencies with Rollup so reviewing does not require external services.
 
-- `shared/parser/src/`: parse/render/serialize/format, transcription for other Markdown renderers, Markdown syntax, reference matching and definition storage. Preserve stored scheduling and hints without evaluating them.
+- `shared/parser/src/`: parse/render/serialize on markdown-it: srmd's plugin (srmd's syntax only, source positions, the cloze rule) and its own instance, reference matching and definition storage; Foam's syntax is left to Foam's plugins. Preserve stored scheduling and hints without evaluating them.
 - `shared/scheduler/src/`: manual hints, due-day balancing, FSRS, note/folder state, queues and counts. FSRS conversion stays internal; cards use the parser's portable record fields.
 - `shared/reviewer/src/`: host-independent review snapshots, plain-text choices and rating mappings.
 - `shared/ui/src/`: HTML controls, DOM interaction, display settings and search for web-based reviewers.
 - `shared/l10n/`: Paraglide message catalogs for every component and host (`messages/<locale>.json`) and the language selection. Components call the compiled, typed `m.<key>()` functions instead of hard-coding user-facing text; `scripts/compile.mjs` generates them into the git-ignored `src/paraglide/`. The VS Code manifest keeps its texts in `apps/vscode/package.nls*.json`.
-- `shared/workspace/src/`: loading, reviewing and saving a folder's notes over a host's `Storage`, with the serial task queue; the settings hosts share and their validation; the tree of all files for hosts listing more than notes.
-- `apps/vscode/`: VS Code filesystem integration, file search and watching around the shared workspace, note tree, review tab (webview host), Markdown preview plugin, note formatter, extension manifest, and syntax-highlighting grammar.
-- `apps/android/`: the Android app. `src/` is its web app, TypeScript on the shared components (views, drawer, review, CodeMirror editor, settings); `native/` its Kotlin shell (one WebView, the Storage Access Framework, the message bridge). See `apps/android/ARCHITECTURE.md`.
+- `shared/workspace/src/`: loading, reviewing and saving a folder's notes over a host's `Storage`, with the serial task queue, srmd's own markdown-it instance notes load with and the one the host shows and saves cards with; the settings hosts share and their validation; the tree of all files for hosts listing more than notes.
+- `apps/vscode/`: VS Code filesystem integration, file search and watching around the shared workspace, note tree, review tab (webview host) and the markdown-it it composes of every extension's plugins, srmd's markdown-it plugin, extension manifest, and syntax-highlighting grammar.
+- `apps/android/`: the Android app. `src/` is its web app, TypeScript on the shared components (views, drawer, review, CodeMirror editor, settings) and on Foam's preview pipeline (`foam.ts`); `native/` its Kotlin shell (one WebView, the Storage Access Framework, the message bridge). See `apps/android/ARCHITECTURE.md`.
+- `foam/`: the Foam repository as a git submodule, pinned to a commit; the Android app bundles foam-core and Foam's preview plugins from it. Run `git submodule update --init` after cloning.
 
 The applications are the VS Code extension and the Android app, which provides reading, review and editing modes. A browser application is deferred; it could reuse the Android web app with a different `Storage`. An iOS host is also future work. Notes sync using the user's existing approach, such as Git or Syncthing, rather than an srmd service.
 

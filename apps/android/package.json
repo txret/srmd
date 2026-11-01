@@ -5,17 +5,24 @@
   "license": "MIT",
   "private": true,
   "type": "module",
+  "imports": {
+    "#foam-preview": {
+      "types": "./src/foam_preview_types.d.ts",
+      "default": "./src/foam_preview.ts"
+    }
+  },
   "scripts": {
     "compile:l10n": "node ../../shared/l10n/scripts/compile.mjs",
-    "build": "npm run compile:l10n && tsc -p tsconfig.json --noEmit && rollup -c",
+    "build": "npm run compile:l10n && npm run build:foam && tsc -p tsconfig.json --noEmit && rollup -c",
     "pretest": "npm run build",
     "test": "node --import tsx --import ../../tests/setup.mjs --test",
-    "pretypecheck": "npm run compile:l10n",
+    "pretypecheck": "npm run compile:l10n && npm run build:foam",
     "typecheck": "tsc -p tsconfig.json --noEmit --pretty false",
     "apk": "npm run build && cd native && ./gradlew assembleDebug",
     "debug": "node scripts/debug.mjs",
     "test:native": "cd native && ./gradlew testDebugUnitTest",
-    "clean": "node -e \"require('node:fs').rmSync('native/app/src/main/assets/web', { recursive: true, force: true })\""
+    "clean": "node -e \"require('node:fs').rmSync('native/app/src/main/assets/web', { recursive: true, force: true })\"",
+    "build:foam": "node scripts/build_foam.mjs"
   },
   "dependencies": {
     "@codemirror/commands": ">=6.11.1",
@@ -24,16 +31,23 @@
     "@codemirror/search": ">=6.7.2",
     "@codemirror/state": ">=6.7.6",
     "@codemirror/view": ">=6.43.15",
+    "@foam/core": "file:../../foam/packages/foam-core",
     "@lezer/highlight": ">=1.2.5",
     "@srmd/l10n": "*",
     "@srmd/parser": "*",
     "@srmd/reviewer": "*",
     "@srmd/scheduler": "*",
     "@srmd/ui": "*",
-    "@srmd/workspace": "*"
+    "@srmd/workspace": "*",
+    "lodash": ">=4.17.21",
+    "lodash-es": ">=4.18.1",
+    "markdown-it": ">=14.3.2",
+    "markdown-it-footnote": ">=4.0.0",
+    "markdown-it-regex": ">=0.2.2"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": ">=29.0.3",
+    "@rollup/plugin-json": ">=6.1.0",
     "@rollup/plugin-node-resolve": ">=16.0.3",
     "rollup": ">=4.64.8",
     "rollup-plugin-esbuild": ">=6.2.1",

@@ -81,6 +81,53 @@ export function has_scheduling(card: Scheduling): boolean {
     card.stability !== 0 || card.difficulty !== 0 || card.learning_steps !== 0 || card.reps !== 0 || card.lapses !== 0
 }
 
+/** Whether digits spell a positive integer that JavaScript represents exactly: a card reference's identifier. */
+export function is_identifier(digits: string): boolean {
+  const value = Number(digits)
+  return digits !== '' && Number.isSafeInteger(value) && value > 0
+}
+
+/** Field syntaxes: a date is `0` or fourteen digits, a decimal may be an integer, a count is an integer. */
+const date_field = /^(?:0|\d{14})$/
+const decimal_field = /^(?:\d+(?:\.\d+)?|\.\d+)$/
+const count_field = /^\d+$/
+/** Patterns of the nine scheduling fields after the label, in order. Hints are day, week or month counts. */
+const field_patterns = [
+  /^(?:[nlkr!]|\d+[dwm])$/, date_field, decimal_field, date_field, decimal_field, decimal_field, count_field,
+  count_field, count_field
+]
+
+/**
+ * Read a definition line at the Markdown input boundary (SYNTAX.md, "Card definitions").
+ * @param line - The line from its `[` to its end, without the line ending.
+ * @returns Scheduling with absent fields zero, or null to leave an invalid definition as text.
+ */
+export function read_definition(line: string): Scheduling | null {
+  /*
+   * 1. Split the label from one to nine fields separated by spaces or tabs, and match each field's pattern;
+   *    integers are valid decimals.
+   * 2. Convert the fields, absent ones zero as SYNTAX.md defines, then require a hint's count to be positive and
+   *    every number to be exactly representable.
+   */
+  const match = /^\[:(\d+)\]:[ \t]*(.*?)[ \t]*$/.exec(line)
+  if (!match || !is_identifier(match[1])) return null
+  const fields = match[2] ? match[2].split(/[ \t]+/) : []
+  if (!fields.length || fields.length > 9 || fields.some((field, index) => !field_patterns[index].test(field))) return null
+  const [state, due = '0', scheduled_days = '0', last_review = '0', stability = '0', difficulty = '0',
+    learning_steps = '0', reps = '0', lapses = '0'] = fields
+  if (/^\d+[dwm]$/.test(state) && !(Number(state.slice(0, -1)) > 0)) return null
+  const card: Scheduling = {
+    ref: Number(match[1]), state: state as Scheduling['state'], due,
+    scheduled_days: Number(scheduled_days), last_review,
+    stability: Number(stability), difficulty: Number(difficulty),
+    learning_steps: Number(learning_steps), reps: Number(reps), lapses: Number(lapses)
+  }
+  const representable = Number.isSafeInteger(card.learning_steps) && Number.isSafeInteger(card.reps) &&
+    Number.isSafeInteger(card.lapses) && Number.isFinite(card.scheduled_days) && Number.isFinite(card.stability) &&
+    Number.isFinite(card.difficulty)
+  return representable ? card : null
+}
+
 /** Whether a state is a manual scheduling hint (`7d`, `2w`, `1m`, `!`), which the scheduler resolves. */
 export function is_hint(state: Scheduling['state']): boolean {
   return state === '!' || /^\d+[dwm]$/.test(state)

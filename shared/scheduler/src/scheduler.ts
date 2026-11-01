@@ -1,5 +1,7 @@
 import { fsrs, Rating, type Grade } from 'ts-fsrs'
 import type { Scheduling } from '../../parser/src'
+// The card module alone, without the parser's markdown-it.
+import { is_hint } from '../../parser/src/cards'
 import { apply_fsrs, pick_due_day, set_due_in, to_fsrs } from './cards'
 import { add_review_days, is_valid_date, parse_date, serialize_date } from './dates'
 import { State, Note, Folder, empty_nodes, get_name, get_parent, FOLDER, NOTE, type Card, type NoteProblem } from './state'
@@ -68,8 +70,7 @@ export class Scheduler {
     for (let index = 0; index < scheduling.length; index++) {
       const card = { ...scheduling[index], ordinal: index + 1 }
       cards.push(card)
-      const hint = card.state === '!' || /^\d+[dwm]$/.test(card.state)
-      if (hint) hints.push(card)
+      if (is_hint(card.state)) hints.push(card)
       else if (!is_valid_date(card.due)) problems.push({ kind: 'invalid_date', ordinal: card.ordinal, field: 'due', value: card.due })
       if (!is_valid_date(card.last_review)) {
         problems.push({ kind: 'invalid_date', ordinal: card.ordinal, field: 'last_review', value: card.last_review })
@@ -108,7 +109,7 @@ export class Scheduler {
         nodes[note.path] = note
         continue
       }
-      if (existing) for (const path of this.notes_below(existing)) this.prune(path)
+      if (existing) for (const path of this.notes_at(note.path)) this.prune(path)
       nodes[note.path] = note
       let child = note.path
       for (let path = get_parent(child); path !== null; path = get_parent(path)) {
@@ -147,9 +148,11 @@ export class Scheduler {
     }
   }
 
-  /** Paths of every note below a folder, or the note itself. */
-  private notes_below(node: Note | Folder): string[] {
-    return node.type === NOTE ? [node.path] : node.children.flatMap(path => this.notes_below(this.state.nodes[path]))
+  /** The note at path, or every note below the folder at path; none for other paths. */
+  notes_at(path: string): string[] {
+    const node = this.state.nodes[path]
+    if (!node) return []
+    return node.type === NOTE ? [path] : node.children.flatMap(child => this.notes_at(child))
   }
 
   /** Select a note path and card ordinal, independently of persisted card references. */

@@ -4,7 +4,7 @@ A flashcard spaced repetition extension for Markdown suitable for knowlege base 
 
 ![Screenshot](assets/screenshot.png)
 
-The Markdown notes are parsed with [micromark](https://github.com/micromark/micromark) with custom extensions. Reviews are scheduled with [ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs), the TS implementation of the [FSRS algorithm](https://github.com/open-spaced-repetition/awesome-fsrs/wiki/The-Algorithm).
+The Markdown notes are parsed with [markdown-it](https://github.com/markdown-it/markdown-it) and srmd's plugin for its syntax. [Foam](https://foambubble.github.io/foam/)'s wiki links and embeds render with Foam's own markdown-it plugins: the installed Foam extension's in VS Code, and Foam's code, included as a Git submodule, in the Android app, which needs no separate Foam install. Reviews are scheduled with [ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs), the TS implementation of the [FSRS algorithm](https://github.com/open-spaced-repetition/awesome-fsrs/wiki/The-Algorithm).
 
 ```markdown
 The World population:: approx 8.3 billion
@@ -37,20 +37,19 @@ There is no database or srmd service. Notes move, rename and sync with whatever 
 
 ## Status
 
-There are two applications: a **VS Code extension** and an **Android app**. The VS Code extension covers:
+There are two applications: a VS Code extension and an Android app. The VS Code extension covers:
 
 - A Flashcards view in the Explorer side bar for navigating flashcards and reviewing.
 - Count badges in the regular Explorer (VS Code design choices are not optimal for srmd, there is no reliable way to display badges for folders as they get suppressed by the bubbling badge).
 - A review tab that follows the VS Code theme.
 - A reading view of notes in VS Code's Markdown preview, with every cloze shown and outlined.
 - Warnings for notes whose card definitions a save would remove.
-- Format Document for notes, which lays out their blocks and keeps what is written inside them, srmd and Foam syntax included.
 
-It is off in every workspace until turned on, from the Command Palette or the status bar, so other projects are never scanned. See [apps/vscode/README.md](apps/vscode/README.md) for its features, commands, keyboard shortcuts and settings. It is not published to the Marketplace; build it from source as described under [Building the extension](#building-the-extension).
+It is off in every workspace until turned on, from the Command Palette or the status bar, so other projects are never scanned. See [apps/vscode/README.md](apps/vscode/README.md) for its features, commands, keyboard shortcuts and settings.
 
-The **Android app** shows the notes folder you pick, full screen with every cloze outlined; swipe right for the folder tree with the cards' counts, swipe up to search the shown file. It reviews notes as the VS Code review tab does and edits files with CodeMirror, formatting Markdown as the extension does. See [apps/android/README.md](apps/android/README.md); build it as described under [Building the Android app](#building-the-android-app).
+The Android app is primarily a tool for viewing and reviewing a Foam/knowledge base folder tree. It shows the notes folder you pick, full screen with every cloze outlined; swipe right for the folder tree with the cards' counts, swipe up to search the shown file. It reviews notes as the VS Code review tab does and edits files with [CodeMirror](https://codemirror.net/). See [apps/android/README.md](apps/android/README.md).
 
-A browser application is planned. An iOS app will require someone else as I do not own a single Apple device. The code base is split into a portable components (`shared/`) and the platform specific components (`apps/`) to minimize the platform specific code.
+A browser application is tentatively planned. An iOS app will require someone else as I do not own a single Apple device. The code base is split into a portable components (`shared/`) and the platform specific components (`apps/`) to minimize the platform specific code.
 
 ## Documentation
 
@@ -60,42 +59,27 @@ A browser application is planned. An iOS app will require someone else as I do n
 | [apps/android/README.md](apps/android/README.md)             | Using the Android app                                                                                              |
 | [apps/android/ARCHITECTURE.md](apps/android/ARCHITECTURE.md) | The Android app's design: the Kotlin shell, the web app and their message channel                                  |
 | [SYNTAX.md](SYNTAX.md)                                       | Writing notes in srmd: clozes, card references and definitions, loading and saving                                 |
-| [ARCHITECTURE.md](ARCHITECTURE.md)                           | The canonical design: cloze syntax, scheduling storage, matching, queues, loading and reviewing, and deferred work |
-| [shared/README.md](shared/README.md)                         | The portable components and their API                                                                              |
-| [shared/parser/README.md](shared/parser/README.md)           | The parser API and the note inspector                                                                              |
+| [ARCHITECTURE.md](ARCHITECTURE.md)                           | The canonical design: the components and their contracts, queues, loading, reviewing and the hosts                 |
+| [shared/parser/README.md](shared/parser/README.md)           | The note inspector                                                                                                 |
 | [tests/README.md](tests/README.md)                           | Running and writing tests                                                                                          |
 | [AGENTS.md](AGENTS.md)                                       | Code conventions and component boundaries                                                                          |
 
 ## Repository layout
 
-A npm workspaces monorepo in TypeScript:
-
-| Path                | Responsibility                                                                                                                            |
-|---------------------|-------------------------------------------------------------------------------------------------------------------------------------------|
-| `shared/parser/`    | srmd syntax (micromark extensions) on GFM, reference matching, rendering, saving and formatting notes                                     |
-| `extensions/`       | Optional micromark extensions a host can turn on, such as [micromark-foam-placeholders](extensions/micromark-foam-placeholders/README.md) |
-| `shared/scheduler/` | Manual hints, due-day balancing, FSRS, the note/folder tree, queues and counts                                                            |
-| `shared/reviewer/`  | Host-independent review data: rendered note, choices with previewed intervals, rating mapping, problem texts                              |
-| `shared/ui/`        | HTML review controls, keyboard shortcuts, search and the reviewer stylesheet, for web-based hosts                                         |
-| `shared/l10n/`      | Message catalogs (English), compiled with [Paraglide](https://paraglidejs.com) into typed functions                                       |
-| `shared/workspace/` | Loading, reviewing and saving a folder's notes over a host's file access, the same way in every host                                      |
-| `apps/vscode/`      | The VS Code host: file access, file search and watching, the views, the review tab and the extension manifest                             |
-| `apps/android/`     | The Android host: a web app on the shared components (`src/`) in a Kotlin shell around one WebView (`native/`)                            |
-| `tests/`            | The test guide and the shared test setup                                                                                                  |
-
-Hosts stay thin. They provide file access, configuration, resource URLs and a review surface, and the shared components do the rest. Each component has its own `src/`, `tests/`, `package.json` and `tsconfig.json`.
+An npm workspaces monorepo in TypeScript: the portable components in `shared/`, the VS Code and Android hosts in `apps/`, and Foam's repository as a Git submodule in `foam/`. Hosts stay thin; they provide file access, configuration, resource URLs and a review surface, and the shared components do the rest. [ARCHITECTURE.md](ARCHITECTURE.md#code-base) lists the components.
 
 ## Development
 
-Install Node 20.19 or later, then install dependencies once at the repository root:
+Install Node 20.19 or later. Clone with the Foam submodule, or fetch it in a clone made without, then install dependencies once at the repository root:
 
 ```sh
+git clone --recurse-submodules <repository>    # or, in an existing clone: git submodule update --init
 npm install
 ```
 
 | Command                                      | Effect                                                                                                       |
 |----------------------------------------------|--------------------------------------------------------------------------------------------------------------|
-| `npm test`                                   | All tests: the optional extensions, the shared components, then both hosts                                   |
+| `npm test`                                   | All tests: the shared components, then both hosts                                                            |
 | `npm run test:<name>`, such as `test:parser` | One component's tests: `parser`, `scheduler`, `reviewer`, `ui`, `workspace`, `shared`, `vscode` or `android` |
 | `npm run typecheck`                          | Type-check every component and both hosts                                                                    |
 | `npm run build`                              | Bundle the extension into `apps/vscode/dist/` and the Android web app into its assets                        |
@@ -161,7 +145,7 @@ User-facing text lives in `shared/l10n/messages/<locale>.json`, one file per lan
 
 ### AI tools
 
-The architecture and majority of code was originally hand rolled, AI tools were used to move this project from stalled to something runnable, detailed code review under way.
+The architecture and majority of code was originally hand rolled, AI tools were then used to move this project from stalled to something runnable and then again to refactor the architecture to move from using `micromark` to `markdown-it`. This last step involved a lot of changes so by now a fair ammount of the code is AI generated unfortunately.
 
 ## License
 

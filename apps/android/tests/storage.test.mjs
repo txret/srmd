@@ -29,7 +29,18 @@ function fake_bridge(files) {
 /** A text cache in memory, as the IndexedDB cache behaves after loading. */
 function fake_cache(entries = {}) {
   const texts = { ...entries }
-  return { texts, get: path => texts[path], put: (path, entry) => { texts[path] = entry }, delete: path => { delete texts[path] } }
+  return {
+    texts, get: path => texts[path], put: (path, entry) => { texts[path] = entry }, delete: path => { delete texts[path] },
+    paths: () => Object.keys(texts)
+  }
+}
+
+/** A scan drops the kept texts of the files it does not list, also of files deleted while the app was closed. */
+export function test_a_scan_drops_the_texts_of_files_no_longer_listed() {
+  const cache = fake_cache({ 'a.sr.md': { text: 'Q:: a', mtime: 1, size: 5 }, 'gone.md': { text: 'Old', mtime: 1, size: 3 } })
+  const storage = new AndroidStorage(fake_bridge({}), cache)
+  storage.set_entries([{ path: 'a.sr.md', mtime: 1, size: 5 }])
+  assert.deepEqual(Object.keys(cache.texts), ['a.sr.md'])
 }
 
 /**

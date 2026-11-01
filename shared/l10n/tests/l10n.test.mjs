@@ -16,27 +16,26 @@ export function test_every_catalog_translates_exactly_the_english_messages() {
   for (const locale of locales) assert.deepEqual({ locale, keys: keys(locale) }, { locale, keys: keys('en') })
 }
 
-/** A host language selects its catalog by language, ignoring case and region; an unknown one selects English. */
+/** A host language selects its catalog by language, ignoring case and region; one without a catalog selects English. */
 export function test_a_host_language_selects_its_catalog_or_english() {
-  assert.equal(match_locale('sv'), 'sv')
-  assert.equal(match_locale('sv-SE'), 'sv')
-  assert.equal(match_locale('SV'), 'sv')
-  assert.equal(match_locale('en-US'), 'en')
+  assert.equal(match_locale('en'), 'en')
+  assert.equal(match_locale('EN-us'), 'en')
   assert.equal(match_locale('zh-cn'), 'en')
   assert.equal(match_locale('de'), 'en')
 }
 
-/** Messages follow the selected language and insert values verbatim: plain-text hosts get no HTML entities. */
-export function test_messages_follow_the_selected_language_and_insert_values_verbatim(t) {
+/**
+ * Messages insert values verbatim, so plain-text hosts get no HTML entities, and a language without a catalog shows
+ * English.
+ */
+export function test_messages_insert_values_verbatim_and_fall_back_to_english(t) {
   t.after(() => set_language('en'))
-  assert.equal(getLocale(), 'en')
   const messages = () => [
     m.reviewer_again(), m.reviewer_day_range({ min: 3, max: 5 }),
     m.vscode_save_failed({ path: 'a & <b>.sr.md', detail: 'read-only' })
   ]
+  assert.equal(getLocale(), 'en')
   assert.deepEqual(messages(), ['Again', '3-5 d', 'Unable to save review for a & <b>.sr.md: read-only'])
-  set_language('sv-SE')
-  assert.deepEqual(messages(), ['Igen', '3–5 d', 'Kunde inte spara repetitionen för a & <b>.sr.md: read-only'])
   set_language('de')
   assert.deepEqual(messages(), ['Again', '3-5 d', 'Unable to save review for a & <b>.sr.md: read-only'])
 }

@@ -12,15 +12,6 @@ export interface StoredSettings {
   rollover?: string
   'inactive.front'?: boolean
   'inactive.back'?: boolean
-  extensions?: string[]
-  /** The formatting options (see the parser's FormatOptions), as VS Code names them. */
-  'format.wrap'?: string
-  'format.lineWidth'?: number
-  'format.numbering'?: string
-  'format.bullet'?: string
-  'format.tableDelimiters'?: string
-  'format.emphasis'?: string
-  'format.strong'?: string
   /** File name extensions opened as Markdown, such as `.md`. */
   markdown?: string[]
   /** File name extensions opened as plain text, such as `.txt`. */

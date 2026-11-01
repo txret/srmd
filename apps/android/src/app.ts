@@ -15,7 +15,7 @@ import { attach_gestures } from './gestures'
 import { icons } from './icons'
 import { Library } from './library'
 import { search_files } from './library_search'
-import { NoteSearch, view_target } from './note_search'
+import { NoteSearch } from './note_search'
 import { NoteView, link_target } from './note_view'
 import { ReviewView } from './review_view'
 import { app_settings, type AppSettings, type StoredSettings } from './settings'
@@ -60,7 +60,6 @@ export interface Elements {
   tree: HTMLElement
   library_search: HTMLInputElement
   toggle: HTMLButtonElement
-  format: HTMLButtonElement
   review_shown: HTMLButtonElement
   open_settings: HTMLButtonElement
   settings: HTMLElement
@@ -90,14 +89,10 @@ export class App {
   private matches: { [path: string]: number } | null = null
   /** Counts the drawer searches, so reads for an earlier search stop and do not redraw. */
   private search_generation = 0
-  /** The note reviewed last, which the main view shows when review ends. */
-  private last_reviewed: string | null = null
   /** Whether the shell was last told that Back closes something here. */
   private back_handled = false
   /** Whether the tree must be drawn again before the drawer next shows. */
   private tree_stale = true
-  /** When the app went to the background, for the away time on return. */
-  private paused_at = 0
   /** The once-a-minute recount while in the foreground, for due-time and review-day transitions. */
   private timer = 0
   /** The status line of the settings page: scanning, or what the last scan found. */
@@ -144,14 +139,14 @@ export class App {
     dark.addEventListener('change', () => { this.config.night_mode = dark.matches })
 
     this.view = new NoteView(elements.view)
-    this.reviewer = new ReviewView(elements.review, this.config, open => this.reviewer_search(open))
-    this.editor = new Editor(elements.editor, () => this.format_edit())
+    this.reviewer = new ReviewView(elements.review, this.config, open => this.follow_search(open))
+    this.editor = new Editor(elements.editor, open => this.follow_search(open))
     this.tree = new TreeView(elements.tree, {
       open: path => void this.open(path),
       toggle: path => this.toggle_folder(path),
       review: path => void this.review(path)
     })
-    this.note_search = new NoteSearch(elements.note_search, () => this.close_note_search())
+    this.note_search = new NoteSearch(elements.note_search, elements.view, () => this.close_note_search())
     this.drawer = new Drawer(elements.drawer, elements.scrim)
     this.settings_view = new SettingsView(elements.settings, {
       pick_root: () => void this.pick_root(),
@@ -170,9 +165,6 @@ export class App {
       search_timer = window.setTimeout(() => this.search_library(), 200)
     })
     elements.toggle.addEventListener('click', () => void this.toggle_edit())
-    elements.format.innerHTML = icons.format
-    elements.format.setAttribute('aria-label', m.android_format())
-    elements.format.addEventListener('click', () => this.format_edit())
     elements.review_shown.innerHTML = icons.play
     elements.review_shown.setAttribute('aria-label', m.android_review_note())
     elements.review_shown.addEventListener('click', () => {
@@ -333,7 +325,6 @@ export class App {
     toggle.innerHTML = mode === 'edit' ? icons.eye : icons.markdown
     toggle.setAttribute('aria-label', mode === 'edit' ? m.android_view_mode() : m.android_edit_mode())
     toggle.disabled = !shown || kind === 'other'
-    this.elements.format.disabled = mode !== 'edit' || kind === 'text'
     const node = shown ? this.library?.workspace.state.nodes[shown] : undefined
     const counts = node?.type === NOTE ? get_counts(node) : null
     this.elements.review_shown.disabled = !counts || !(counts.due + counts.new) || mode === 'review'
@@ -409,8 +400,23 @@ export class App {
     const library = this.library!
     if (this.find('note_search') && this.mode() === 'view') this.close_note_search()
     const keep = this.view.path === path ? this.elements.view.scrollTop : 0
-    this.view.show(path, text, library.kind(path), this.settings.extensions, scroll ?? keep)
+    this.view.show(path, text, library.kind(path), library.foam.md, scroll ?? keep)
     this.shown_text = text
+    void this.show_links(path, text)
+  }
+
+  /**
+   * Show the file in view mode again once Foam has read what its wiki links and embeds point at (Foam.prepare()), with
+   * the files' titles and the files embedded, unless another text shows by then. A file without wiki links needs none.
+   */
+  private async show_links(path: string, text: string): Promise<void> {
+    /* Prepare in a task, as Foam's view of the folder follows the scans; render again for the same file, text and mode. */
+    const library = this.library!
+    const kind = library.kind(path)
+    if (kind === 'text' || !text.includes('[[')) return
+    await library.workspace.run(() => library.foam.prepare(path, text))
+    if (this.library !== library || this.view.path !== path || this.shown_text !== text || this.mode() !== 'view') return
+    this.view.show(path, text, kind, library.foam.md, this.elements.view.scrollTop)
   }
 
   /** Read the file the main view shows in view mode again, rendering it when it changed. */
@@ -445,13 +451,15 @@ export class App {
   /** Follow a link tapped in the shown file: its element, another file over this one, or a URL outside the app. */
   private click_link(event: MouseEvent): void {
     /*
-     * 1. Only links in the shown file count; the page itself never navigates.
+     * 1. Only links in the shown file count; the page itself never navigates. A link in a hidden cloze of the card
+     *    under review is part of the cloze, which the reviewer reveals.
      * 2. Resolve the link against the file and act on its target. A link to a missing file is tried with the Markdown
      *    and note extensions, as Foam writes links without them.
      */
     const anchor = (event.target as Element).closest?.('a[href]')
     if (!anchor || !(this.elements.view.contains(anchor) || this.elements.review.contains(anchor))) return
     event.preventDefault()
+    if (this.elements.review.contains(anchor) && anchor.closest('.cloze.hide')) return
     event.stopPropagation()
     const target = link_target(anchor.getAttribute('href')!, this.shown_path() ?? '')
     if (!target || !this.library) return
@@ -571,21 +579,23 @@ export class App {
 
   // Note search ----------------------------------------------------------------------------------------------------
 
-  /** Open the search of the shown file, with query searched at once: the bar in view and edit mode, the reviewer's own in review. */
+  /**
+   * Open the search of the shown file, with query searched at once: the bar in view mode, the reviewer's own in review,
+   * CodeMirror's search panel in edit mode.
+   */
   private open_note_search(query = ''): void {
-    /* In review the reviewer's search reports itself (see reviewer_search()); elsewhere the bar searches its pane. */
+    /* The reviewer's and the editor's searches report themselves (see follow_search()); the bar is a layer of its own. */
     if (this.find('note_search') || this.drawer.open) return
     const mode = this.mode()
     if (mode === 'review') {
       if (this.reviewer.open_search()) this.show_keyboard()
       return
     }
-    if (mode === 'empty') return
-    const target = mode === 'edit'
-      ? { find: (text: string, backward: boolean) => this.editor.find(text, backward), clear: () => this.editor.clear_search() }
-      : view_target(this.elements.view)
-    this.note_search.show(target, query)
-    this.push({ kind: 'note_search' })
+    if (mode === 'edit') this.editor.open_search(query)
+    else if (mode === 'view') {
+      this.note_search.show(query)
+      this.push({ kind: 'note_search' })
+    } else return
     if (!query) this.show_keyboard()
   }
 
@@ -598,12 +608,13 @@ export class App {
   private close_note_search(): void {
     this.note_search.hide()
     this.reviewer.close_search()
+    this.editor.close_search()
     const layer = this.find('note_search')
     if (layer) this.remove(layer)
   }
 
-  /** Follow the reviewer's own search opening or closing, so Back closes it. */
-  private reviewer_search(open: boolean): void {
+  /** Follow a search opening or closing by itself, the reviewer's or CodeMirror's, so Back closes it. */
+  private follow_search(open: boolean): void {
     const layer = this.find('note_search')
     if (open && !layer) this.push({ kind: 'note_search' })
     else if (!open && layer) this.remove(layer)
@@ -614,8 +625,6 @@ export class App {
   /** Review a note or folder: everything open closes first, then cards follow one another until none is left. */
   async review(scope: string): Promise<void> {
     if (!this.library || !await this.close_all()) return
-    // A review that shows no card leaves the shown file as it is.
-    this.last_reviewed = null
     const layer: Extract<Layer, { kind: 'review' }> = { kind: 'review', scope, card: null }
     this.push(layer)
     await this.run_review(layer)
@@ -639,7 +648,6 @@ export class App {
           return
         }
         layer.card = card
-        this.last_reviewed = card.path
         this.render()
         const rating = await this.reviewer.show(card)
         if (rating === null || !this.layers.includes(layer)) return
@@ -650,12 +658,12 @@ export class App {
           return
         }
         if (result.status === 'changed') {
-          this.log.warn(m.android_note_changed({ path: card.path }))
-          this.toast.show(m.android_note_changed({ path: card.path }))
+          this.log.warn(m.workspace_note_changed({ path: card.path }))
+          this.toast.show(m.workspace_note_changed({ path: card.path }))
         }
       }
     } catch (error: unknown) {
-      this.failed(m.android_review_failed({ detail: error_text(error) }), error)
+      this.failed(m.workspace_review_failed({ detail: error_text(error) }), error)
       this.end_review(layer)
     }
   }
@@ -667,9 +675,10 @@ export class App {
     const search = this.find('note_search')
     if (search) this.close_note_search()
     this.reviewer.close()
-    // Review starts with nothing else open, so below it is only the shown file, which becomes the last note reviewed.
-    if (this.last_reviewed) {
-      this.path = this.last_reviewed
+    // Review starts with nothing else open, so below it is only the shown file, which becomes the last note reviewed;
+    // a review that showed no card leaves it as it is.
+    if (layer.card) {
+      this.path = layer.card.path
       this.cache.set_value('last', this.path)
     }
     this.remove(layer)
@@ -699,30 +708,15 @@ export class App {
       this.failed(m.android_read_failed({ path, detail: error_text(error) }), error)
       return
     }
-    this.editor.open(text, library.kind(path), this.settings.extensions)
+    this.editor.open(text, library.kind(path), library.foam.md)
     this.push({ kind: 'edit', path, base: text })
-  }
-
-  /**
-   * Format the Markdown being edited, from the drawer's button, which closes the drawer, or Shift+Alt+F; both exist
-   * for Markdown files only. A toast says when the text is formatted already, or when formatting would change how it
-   * renders and left it as it was.
-   */
-  private format_edit(): void {
-    /* Close the drawer, format the edit's text, then report a format that changed nothing. */
-    this.set_drawer(false)
-    const layer = this.content_layer()
-    if (layer?.kind !== 'edit') return
-    const result = this.editor.format(this.settings.format)
-    if (result === 'refused') this.toast.show(m.android_format_refused({ name: get_name(layer.path) }), 6000)
-    else if (result === 'unchanged') this.toast.show(m.android_formatted_already({ name: get_name(layer.path) }))
   }
 
   /** Reopen an edit Android ended before it was saved, from its draft: the edited text over the file it started from. */
   private async restore_draft(path: string, text: string, base: string): Promise<void> {
     await this.open(path)
     if (this.path !== path) return
-    this.editor.open(text, this.library!.kind(path), this.settings.extensions, base)
+    this.editor.open(text, this.library!.kind(path), this.library!.foam.md, base)
     this.push({ kind: 'edit', path, base })
     this.toast.show(m.android_draft_restored({ name: get_name(path) }))
   }
@@ -875,7 +869,7 @@ export class App {
         this.render()
       },
       problems: count => {
-        if (count) this.toast.show(m.android_problems_found({ count }), 6000)
+        if (count) this.toast.show(m.workspace_problems_found({ count }), 6000)
       }
     }, root.name)
   }
@@ -920,7 +914,6 @@ export class App {
 
   /** Going to the background: keep an unsaved edit as a draft, since Android may end the app; stop recounting. */
   private pause(): void {
-    this.paused_at = Date.now()
     window.clearInterval(this.timer)
     this.timer = 0
     const layer = this.find('edit')
@@ -932,7 +925,7 @@ export class App {
     this.start_timer()
     const library = this.library
     if (!library) return
-    if (away >= RESCAN_AFTER || (this.paused_at && Date.now() - this.paused_at >= RESCAN_AFTER)) void this.rescan()
+    if (away >= RESCAN_AFTER) void this.rescan()
     else {
       void library.workspace.run(() => library.workspace.refresh())
       void this.refresh_view()

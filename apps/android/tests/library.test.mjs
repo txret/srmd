@@ -26,7 +26,7 @@ function make_library(files) {
     }
   }
   const texts = {}
-  const cache = { get: path => texts[path], put: (path, entry) => { texts[path] = entry }, delete: path => { delete texts[path] } }
+  const cache = { get: path => texts[path], put: (path, entry) => { texts[path] = entry }, delete: path => { delete texts[path] }, paths: () => Object.keys(texts) }
   const log = { info: message => host.log.push(message), warn: message => host.log.push(message), error: message => host.log.push(message) }
   const events = { refreshed: async () => { host.refreshes++ }, problems: count => host.problems.push(count) }
   host.library = new Library(bridge, new AndroidStorage(bridge, cache), app_settings({}, () => {}), log, events, 'notes')

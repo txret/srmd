@@ -1,9 +1,30 @@
 /** The notes folder: its files from the shell's scans, and its notes in the shared workspace. */
+import type { ParsedNote } from '@srmd/parser'
 import { NOTE } from '@srmd/scheduler'
-import { Workspace, each_limited, error_text, file_kind, folder_children, type FileEntry, type FileKind, type Log, type WorkspaceEvents } from '@srmd/workspace'
+import {
+  Workspace, each_limited, error_text, file_kind, folder_children, type FileEntry, type FileKind, type Log, type Storage,
+  type WorkspaceEvents, type WorkspaceSettings
+} from '@srmd/workspace'
 import type { Bridge } from './bridge'
+import { Foam } from './foam'
 import type { AppSettings } from './settings'
 import type { AndroidStorage } from './storage'
+
+/**
+ * The shared workspace, showing and saving cards with Foam's instance, which has Foam read what a card's note links to
+ * first; notes load with srmd's own.
+ */
+class NotesWorkspace extends Workspace {
+  constructor(storage: Storage, settings: WorkspaceSettings, log: Log, events: WorkspaceEvents, private readonly foam: Foam) {
+    super(storage, settings, log, events)
+    this.use(foam.md)
+  }
+
+  /** Have Foam read the files a card's note links to and embeds, before the card renders. */
+  protected override async prepare(path: string, parsed: ParsedNote): Promise<void> {
+    await this.foam.prepare(path, parsed.source)
+  }
+}
 
 /**
  * The folder's files and notes. Android cannot watch a folder picked through the Storage Access Framework, so changes
@@ -12,6 +33,9 @@ import type { AndroidStorage } from './storage'
  * shown, and a note found changed then is reloaded, so the shown note and its counts are current.
  */
 export class Library {
+  /** Foam's view of the folder's files, and the markdown-it every file renders with. */
+  readonly foam: Foam
+  /** The notes: loaded with srmd's own markdown-it, their cards shown and saved with Foam's. */
   readonly workspace: Workspace
   /** The listing shown: the last scan's files, or before the first scan the last session's. */
   files: FileEntry[] = []
@@ -25,7 +49,8 @@ export class Library {
     private readonly bridge: Bridge, readonly storage: AndroidStorage, private settings: AppSettings,
     private readonly log: Log, private readonly events: WorkspaceEvents, public root_name: string
   ) {
-    this.workspace = new Workspace(storage, settings, log, events)
+    this.foam = new Foam(path => storage.read(path), path => this.kind(path) === 'note' || this.kind(path) === 'markdown')
+    this.workspace = new NotesWorkspace(storage, settings, log, events, this.foam)
   }
 
   /** The kind of the file at path, by the note suffixes and the file types of the settings. */
@@ -45,14 +70,13 @@ export class Library {
   }
 
   /**
-   * Use changed settings. Scheduler options apply at once; changed suffixes, extensions, file types or skipped names
-   * make the next scan load every note again.
+   * Use changed settings. Scheduler options apply at once; changed suffixes, file types or skipped names make the next
+   * scan load every note again.
    * @returns Whether the notes must be loaded again, which the caller does with scan().
    */
   configure(settings: AppSettings): boolean {
-    /* Compare what decides which files are notes and how they parse, then hand the settings on. */
-    // Extensions compare by count: the only optional extension is either on or off.
-    const key = (value: AppSettings): string => JSON.stringify([value.suffixes, value.types, value.skip, value.extensions.length])
+    /* Compare what decides which files are notes, then hand the settings on. */
+    const key = (value: AppSettings): string => JSON.stringify([value.suffixes, value.types, value.skip])
     if (key(this.settings) !== key(settings)) this.loaded = false
     this.settings = settings
     this.workspace.configure(settings)
@@ -67,7 +91,8 @@ export class Library {
   async scan(): Promise<void> {
     /*
      * 1. List the folder through the shell.
-     * 2. In a task: load all notes into an emptied workspace, or compare the listing with the storage's entries,
+     * 2. In a task: give Foam the listing, then load all notes into an emptied workspace, or compare the
+     *    listing with the storage's entries,
      *    which reads and writes since the last scan kept current, and apply the differences.
      */
     const { entries } = await this.bridge.request('files.scan', { skip: this.settings.skip })
@@ -77,6 +102,9 @@ export class Library {
       if (!this.loaded) {
         this.storage.set_entries(entries)
         this.list(entries)
+        // Foam takes every file anew, as changed settings may have made other files Markdown.
+        const paths = entries.map(entry => entry.path)
+        await this.foam.set_files(paths, paths)
         scheduler.load(this.root_name)
         // Notes build their queues as they are inserted; counting first starts the review day (see add()).
         state.recount()
@@ -92,6 +120,12 @@ export class Library {
       }).map(note => note.path)
       const listed = new Set(notes.map(note => note.path))
       const removed = Object.keys(state.nodes).filter(path => state.nodes[path].type === NOTE && !listed.has(path))
+      // Foam takes the listing, and forgets what it read of files that changed, so their titles show anew.
+      const modified = entries.filter(({ path, mtime, size }) => {
+        const before = this.storage.entry(path)
+        return !before || before.mtime !== mtime || before.size !== size
+      }).map(entry => entry.path)
+      await this.foam.set_files(entries.map(entry => entry.path), modified)
       this.storage.set_entries(entries)
       this.list(entries)
       await this.workspace.apply(removed, changed)

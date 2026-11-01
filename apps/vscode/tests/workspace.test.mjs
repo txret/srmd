@@ -47,11 +47,10 @@ Known:: second[:42]
 }
 
 /**
- * Loading and watching persist manual hints once while ordinary edits stay unchanged.
- * Save a load-time hint, ignore its watcher echo, then load an ordinary edit and a new hint. Only the hint's state
- * and due fields change: the identifier and the other fields stay as written, without renumbering.
+ * The watcher's echo of srmd's own write is skipped, so a hint saved at load is saved once, while an ordinary edit is
+ * loaded without writing it. Save a load-time hint, fire its echo, then change the note.
  */
-export async function test_hints_are_saved_once_and_ordinary_edits_never(t) {
+export async function test_the_echo_of_a_saved_hint_is_skipped_and_ordinary_edits_are_never_written(t) {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-15T12:00:00+02:00') })
   const source = `
 [:8]: 7d 0 0 0 0 0 0 0 0
@@ -79,22 +78,6 @@ Fresh:: new`.slice(1)
   host.changes.fire(uri(path))
   await wait_until(() => host.state.nodes['topic/a.sr.md'].cards.length === 2)
   assert.deepEqual(host.files.get(path), { text: edited, mtime: 3 })
-  const hinted = `
-[:8]: 2w 20261022043000 7 20261015120000 7 2.11810397 0 1 0
-
-Q:: answer[:8]
-
-Fresh:: new`.slice(1)
-  host.files.set(path, { text: hinted, mtime: 4 })
-  host.changes.fire(uri(path))
-  await wait_until(() => host.files.get(path).mtime === 5)
-  assert.equal(host.files.get(path).text,
-    `
-[:8]: k 20261029043000 7 20261015120000 7 2.11810397 0 1 0
-
-Q:: answer[:8]
-
-Fresh:: new`.slice(1))
 }
 
 /**
@@ -174,28 +157,6 @@ S:: three
   assert.deepEqual(host.rows('topic'), [note_row('topic/a.sr.md', [0, 1, 0]), note_row('topic/b.sr.md', [0, 1, 0], '⚠ ')])
   assert.deepEqual(host.rows(''), [folder_row('topic', [0, 2, 0], '⚠ ')])
   assert.equal(host.warnings.length, 2)
-}
-
-/**
- * Unreadable notes and failed hint writes are logged instead of vanishing silently.
- * Read failures skip the note during a reload; a failed hint write keeps the note loaded.
- */
-export async function test_unreadable_notes_and_failed_hint_writes_are_logged(t) {
-  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-15T12:00:00+02:00') })
-  const host = await start_host(t, 'Q:: one', {})
-  host.files.set('/workspace/bad.sr.md', { get text() { throw new Error('Permission denied') }, mtime: 1 })
-  host.folders_changed()
-  await wait_until(() => host.tree_changes.length === 2)
-  assert.equal(host.state.nodes['bad.sr.md'], undefined)
-  assert.deepEqual(host.log, [['error', 'Skipped bad.sr.md: Permission denied']])
-
-  host.files.delete('/workspace/bad.sr.md')
-  host.fail_writes(new Error('Disk is read-only'))
-  host.files.set('/workspace/hint.sr.md', { text: '[:1]: 7d 0 0 0 0 0 0 0 0\n\nQ:: answer[:1]\n', mtime: 1 })
-  host.changes.fire(uri('/workspace/hint.sr.md'))
-  await wait_until(() => host.log.length === 2)
-  assert.deepEqual(host.log[1], ['error', 'Unable to save resolved scheduling hints to hint.sr.md: Disk is read-only'])
-  assert.equal(host.state.nodes['hint.sr.md'].cards[0].state, 'k')
 }
 
 /**
@@ -349,17 +310,17 @@ export async function test_watcher_batches_run_one_at_a_time(t) {
 }
 
 /**
- * A workspace-folder change during a review save leaves the watcher working.
+ * A reload during a review save, which new suffixes start, leaves the watcher working.
  * The reload waits for the save; afterwards a created note must still load.
  */
-export async function test_a_folder_change_during_a_save_leaves_the_watcher_working(t) {
+export async function test_a_reload_during_a_save_leaves_the_watcher_working(t) {
   const host = await start_host(t, 'Q:: one', {})
   host.review()
   await wait_until(() => host.panel?.document)
   const finish_write = host.pause_writes()
   host.panel.reply('tomorrow')
   await wait_until(() => host.writing)
-  host.folders_changed()
+  host.change_settings({ suffixes: ['.sr.md', '.md'] })
   await delay(20)
   finish_write()
   await wait_until(() => !host.writing)
@@ -371,12 +332,12 @@ export async function test_a_folder_change_during_a_save_leaves_the_watcher_work
 
 /**
  * Closing the folder during a load leaves no notes from that load.
- * Hold the reload's read, close the workspace, then let the reload finish first.
+ * Hold the read of a reload, which new suffixes start, close the workspace, then let the reload finish first.
  */
 export async function test_closing_the_folder_during_a_load_leaves_no_notes(t) {
   const host = await start_host(t, { 'topic/a.sr.md': 'Q:: one', 'topic/b.sr.md': 'Q:: two' }, {})
   const reads = host.pause_reads()
-  host.folders_changed()
+  host.change_settings({ suffixes: ['.sr.md', '.md'] })
   await wait_until(() => reads.pending > 0)
   host.close_workspace()
   await delay(20)
@@ -388,8 +349,9 @@ export async function test_closing_the_folder_during_a_load_leaves_no_notes(t) {
 
 /**
  * A load that crosses the review day's rollover counts its notes for the new day.
- * Notes build their queues as they load. Hold the reload's hint write, so its notes are built before 04:00, and
- * let the clock pass the rollover before the counts are published: the card due later today becomes due.
+ * Notes build their queues as they load. Hold the hint write of a reload, which new suffixes start, so its notes are
+ * built before 04:00, and let the clock pass the rollover before the counts are published: the card due later today
+ * becomes due.
  */
 export async function test_a_load_across_the_rollover_counts_for_the_new_day(t) {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-15T03:59:00+02:00') })
@@ -403,7 +365,7 @@ Q:: answer[:1]
   // An edit outside srmd adds a hint, which the reload resolves and writes.
   host.files.set('/workspace/topic/b.sr.md', { text: 'Q:: b[:1]\n\n[:1]: 3d\n', mtime: 2 })
   const finish_write = host.pause_writes()
-  host.folders_changed()
+  host.change_settings({ suffixes: ['.sr.md', '.md'] })
   await wait_until(() => host.writing)
   t.mock.timers.tick(2 * 60_000)
   finish_write()
@@ -427,6 +389,7 @@ export async function test_a_multi_root_workspace_loads_its_first_folder(t) {
 /**
  * Changed settings apply without reloading the extension.
  * New suffixes reload the folder, the rollover reaches the scheduler, and an open tab gets the display settings.
+ * Display and queue settings alone keep the notes loaded, without listing the folder again.
  */
 export async function test_changed_settings_apply_without_reloading(t) {
   const host = await start_host(t, { 'topic/a.sr.md': 'Q:: one', 'b.cards.md': 'Q:: two' }, {})
@@ -444,37 +407,44 @@ export async function test_changed_settings_apply_without_reloading(t) {
     night_mode: false
   })
   assert.deepEqual(host.panel.cards.map(card => card.id), [1, 1])
+  const [searches, changes] = [host.searches, host.tree_changes.length]
+  host.change_settings({ 'inactive.back': true, queueOrder: ['new', 'intraday', 'interday'] })
+  await wait_until(() => host.tree_changes.length > changes)
+  assert.equal(host.searches, searches)
+  assert.deepEqual(host.state.config.queue_order, ['new', 'intraday', 'interday'])
+  assert.deepEqual(Object.keys(host.state.nodes).sort(), ['', 'b.cards.md'])
   host.panel.dispose()
 }
 
 /**
- * A queue order listing every queue once is applied.
- * New cards first: the new card is served although a due card exists.
+ * A folder that cannot be listed loads no notes, and says why in the log and an error message; srmd stays on, and a
+ * later load lists the folder again.
  */
-export async function test_a_queue_order_listing_every_queue_once_is_applied(t) {
+export async function test_a_folder_that_cannot_be_listed_is_reported(t) {
+  const host = await start_host(t, 'Q:: one', {})
+  host.fail_searches(new Error('Search is unavailable'))
+  const changes = host.tree_changes.length
+  host.change_settings({ suffixes: ['.md'] })
+  await wait_until(() => host.tree_changes.length > changes)
+  assert.deepEqual(Object.keys(host.state.nodes), [''])
+  assert.deepEqual(host.log, [['error', 'Could not load the notes: Search is unavailable']])
+  assert.deepEqual(host.errors, ['Could not load the notes: Search is unavailable'])
+}
+
+/**
+ * The settings reach the workspace (the shared settings tests validate them): a queue order listing every queue once
+ * applies, new cards first, while an invalid rollover is logged by its setting's name and replaced by its default.
+ */
+export async function test_settings_reach_the_workspace_and_invalid_ones_are_logged(t) {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-15T12:00:00+02:00') })
-  const host = await start_host(t, row_notes, { queueOrder: ['new', 'intraday', 'interday'] })
+  const host = await start_host(t, row_notes, { queueOrder: ['new', 'intraday', 'interday'], rollover: '25:00' })
   assert.deepEqual(host.state.config.queue_order, ['new', 'intraday', 'interday'])
+  assert.equal(host.state.config.rollover, 4 * 3600000)
+  assert.deepEqual(host.log, [['warn', 'Ignored invalid setting srmd.rollover; using its default.']])
   host.review(uri('/workspace/topic/a.sr.md'))
   await wait_until(() => host.panel?.document)
   assert.deepEqual(host.panel.document.active_ordinals(), [1])
-  assert.deepEqual(host.log, [])
   host.panel.dispose()
-}
-
-/**
- * Invalid queue order, rollover and extensions settings are logged and replaced by their defaults.
- * A queue order missing queues would leave due cards unserved; an unknown extension leaves notes plain.
- */
-export async function test_invalid_settings_are_logged_and_replaced_by_defaults(t) {
-  const host = await start_host(t, 'Q:: one', { queueOrder: ['new'], rollover: '25:00', extensions: ['foam-placeholders', 'nope'] })
-  assert.deepEqual(host.state.config.queue_order, ['intraday', 'interday', 'new'])
-  assert.equal(host.state.config.rollover, 4 * 3600000)
-  assert.deepEqual(host.log, [
-    ['warn', 'Ignored invalid setting srmd.queueOrder; using its default.'],
-    ['warn', 'Ignored invalid setting srmd.rollover; using its default.'],
-    ['warn', 'Ignored invalid setting srmd.extensions; using its default.']
-  ])
 }
 
 /**
@@ -494,7 +464,8 @@ export async function test_srmd_stays_off_until_turned_on_and_off_unloads_everyt
   assert.deepEqual(host.contexts.get('srmd.reviewResources'), {})
   assert.deepEqual(host.status, off)
 
-  // A status bar click turns it on in the workspace settings, which loads and watches the folder.
+  // A status bar click turns it on in the workspace settings, which loads and watches the folder: it searches for the
+  // notes, and watches note changes and paths created or deleted.
   await host.command('srmd.toggle')
   await wait_until(() => host.state.nodes['topic/a.sr.md'])
   assert.deepEqual(host.config_updates, [['enabled', true, 2]])

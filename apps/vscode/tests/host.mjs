@@ -40,11 +40,6 @@ export class Range {
   constructor(start, end) { Object.assign(this, { start, end }) }
 }
 export class Selection extends Range {}
-/** An edit replacing a range with new text, as formatting providers return them. */
-export class TextEdit {
-  constructor(range, newText) { Object.assign(this, { range, newText }) }
-  static replace(range, newText) { return new TextEdit(range, newText) }
-}
 /** An editor tab's input for a text file, which the extension recognizes by class. */
 export class TabInputText {
   constructor(uri) { this.uri = uri }
@@ -74,18 +69,8 @@ export const root_row = ([due, fresh, later], warning = '') => ({
   iconPath: ThemeIcon.Folder, description: `${warning}d${due} • n${fresh} • l${later}`, contextValue: 'folder'
 })
 /**
- * Whether a document selector's glob matches a path as VS Code matches it: two asterisks and a slash match any
- * folders, one asterisk any part of a name, and a bracketed class one of its characters.
- */
-const matches_glob = (glob, name) => {
-  /* Translate the glob to a regular expression part by part; a class is a regular expression class already. */
-  const source = glob.replace(/\*\*\/|\*|\[[^\]]*\]|[^*[]+/g, part =>
-    part === '**/' ? '(?:.*/)?' : part === '*' ? '[^/]*' : part.startsWith('[') ? part : part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
-  return new RegExp(`^${source}$`).test(name)
-}
-/**
  * Whether changing srmd settings, by key without the `srmd.` prefix, affects a configuration section, as VS Code
- * reports it: the section is a changed setting or contains one, as `srmd.format` contains `srmd.format.wrap`.
+ * reports it: the section is a changed setting or contains one, as `srmd.inactive` contains `srmd.inactive.front`.
  */
 const affects = (keys, section) => keys.some(key => `srmd.${key}` === section || `srmd.${key}`.startsWith(`${section}.`))
 const events = () => {
@@ -105,6 +90,13 @@ const events = () => {
     dispose() { listeners.clear() }
   }
 }
+/**
+ * Another installed extension whose manifest declares `markdown.markdownItPlugins`, for start_host(): activated, it
+ * exports extendMarkdownIt(md), which runs plugin(md) and returns its result, or md when plugin returns nothing. With an
+ * activation error, activating it rejects with that error instead.
+ */
+export const markdown_extension = (id, plugin, activation_error) => ({ id, plugin, activation_error })
+
 /** Wait until predicate holds, checking every 5 ms for a second; the test fails if it never does. */
 export const wait_until = async predicate => {
   for (let i = 0; i < 200; i++) {
@@ -120,10 +112,12 @@ export const wait_until = async predicate => {
  * acting as the user or VS Code would. Only VS Code plumbing is shared; each test supplies its notes.
  * @param t - The test, whose end disposes the extension.
  * @param source - The text of topic/a.sr.md, or note texts by workspace-relative path.
- * @param settings - srmd settings by key without the `srmd.` prefix; srmd is on unless they turn it off.
+ * @param settings - srmd settings by key without the `srmd.` prefix, and other sections' settings by their full key,
+ *   such as `markdown.preview.breaks`; srmd is on unless they turn it off.
  * @param language - VS Code's display language.
+ * @param extensions - The other extensions installed that contribute markdown-it plugins, from markdown_extension().
  */
-export const start_host = async (t, source, settings, language = 'en') => {
+export const start_host = async (t, source, settings, language = 'en', extensions = []) => {
   /* Fix nonce generation as well as due-day tie breaking so full HTML remains deterministic. */
   t.mock.method(Math, 'random', () => 0)
   settings = { enabled: true, ...settings }
@@ -141,7 +135,30 @@ export const start_host = async (t, source, settings, language = 'en') => {
   /** View refresh events, and the title of every review panel opened in order. */
   const tree_changes = []
   const panels = []
-  const context = { subscriptions: [], extensionUri: uri('/extension') }
+  /** The ids of the other extensions in the order they were activated, each once, as VS Code activates them. */
+  const activations = []
+  /** srmd itself as VS Code lists it, with its manifest, already active. */
+  const self = { id: 'srmd.srmd', packageJSON: require('../package.json'), isActive: true }
+  /** An installed extension as VS Code lists it, from a markdown_extension() description. */
+  const installed = ({ id, plugin, activation_error }) => {
+    const extension = {
+      id, packageJSON: { contributes: { 'markdown.markdownItPlugins': true } }, isActive: false, exports: undefined,
+      async activate() {
+        /* Activating an active extension again resolves with its exports at once. */
+        if (extension.isActive) return extension.exports
+        activations.push(id)
+        if (activation_error) throw activation_error
+        extension.isActive = true
+        extension.exports = { extendMarkdownIt: md => plugin(md) ?? md }
+        return extension.exports
+      }
+    }
+    return extension
+  }
+  /** Every extension VS Code lists, srmd last, as VS Code lists them in no particular order. */
+  const all_extensions = [...extensions.map(installed), self]
+  const extension_changes = events()
+  const context = { subscriptions: [], extensionUri: uri('/extension'), extension: self }
   let provider
   let tree
   let panel
@@ -183,10 +200,10 @@ export const start_host = async (t, source, settings, language = 'en') => {
   /** The extension's status bar item, as VS Code would show it. */
   let status
   let write_error = null
+  /** The error file searches fail with, as fail_searches() sets it; null while they succeed. */
+  let search_error = null
   /** How often the extension asked VS Code to redraw open Markdown previews. */
   let preview_refreshes = 0
-  /** The formatting providers registered and not disposed, as { selector, provider }, in registration order. */
-  const formatters = new Set()
   const mock = {
     Uri: {
       parse: value => uri(new URL(value).pathname),
@@ -199,7 +216,6 @@ export const start_host = async (t, source, settings, language = 'en') => {
     Position,
     Range,
     Selection,
-    TextEdit,
     TabInputText,
     TextEditorRevealType: { InCenterIfOutsideViewport: 2 },
     ThemeIcon,
@@ -211,9 +227,15 @@ export const start_host = async (t, source, settings, language = 'en') => {
     StatusBarAlignment: { Left: 1, Right: 2 },
     ViewColumn: { Active: -1, Beside: -2 },
     env: { language },
+    /** srmd and the other installed extensions; installing one reports a change. */
+    extensions: {
+      get all() { return all_extensions },
+      onDidChange: extension_changes.event
+    },
     workspace: {
       workspaceFolders: [{ uri: uri('/workspace'), name: 'workspace' }],
-      getConfiguration: () => ({
+      /** srmd's section, whose settings can be written, or another's, such as `markdown`, read by full key. */
+      getConfiguration: section => section !== 'srmd' ? { get: (key, fallback) => settings[`${section}.${key}`] ?? fallback } : ({
         get: (key, fallback) => settings[key] ?? fallback,
         /** Write a setting and report the change, as VS Code does once the settings file is saved. */
         update: async (key, value, target) => {
@@ -225,11 +247,13 @@ export const start_host = async (t, source, settings, language = 'en') => {
       onDidChangeWorkspaceFolders: workspaces.event,
       onDidChangeConfiguration: configuration.event,
       asRelativePath: value => value.path === '/workspace' ? value.path : path.relative('/workspace', value.path),
-      /** Files below the pattern's base folder with a note suffix. */
-      findFiles: async ({ base }) => {
+      /** Files below the pattern's base folder ending in one of the endings its glob lists in braces, such as {.sr.md,.md}. */
+      findFiles: async ({ base, pattern }) => {
         searches++
+        if (search_error) throw search_error
+        const endings = /\{([^}]*)\}$/.exec(pattern)[1].split(',')
         return [...files.keys()]
-          .filter(name => name.startsWith(`${base.path}/`) && (settings.suffixes ?? ['.sr.md']).some(suffix => name.endsWith(suffix)))
+          .filter(name => name.startsWith(`${base.path}/`) && endings.some(ending => name.toLowerCase().endsWith(ending)))
           .map(uri)
       },
       /** Watchers share the test's event sources; each subscribes only to the kinds it does not ignore. */
@@ -278,14 +302,6 @@ export const start_host = async (t, source, settings, language = 'en') => {
         }
       }
     },
-    languages: {
-      /** Keep a formatting provider for the documents its selector matches, until it is disposed. */
-      registerDocumentFormattingEditProvider: (selector, provider) => {
-        const registration = { selector, provider }
-        formatters.add(registration)
-        return { dispose() { formatters.delete(registration) } }
-      }
-    },
     commands: {
       executeCommand: async (command, key, value) => {
         /* Capture Explorer menu membership, the resources the Explorer is asked to reveal, and preview redraws. */
@@ -332,22 +348,14 @@ export const start_host = async (t, source, settings, language = 'en') => {
         }
         return view
       },
-      /** A quick pick: its rows and value as the extension set them, and events the test fires by typing or accepting. */
-      createQuickPick: () => {
-        const value_changes = events()
-        const accepts = events()
-        const hides = events()
+      /** A quick pick: its rows and options as the extension gave them, closed by the test accepting a row or hiding it. */
+      showQuickPick: (items, options) => new Promise(resolve => {
         quick_pick = {
-          items: [], value: '', placeholder: undefined, selectedItems: [], shown: false, disposed: false,
-          onDidChangeValue: value_changes.event, onDidAccept: accepts.event, onDidHide: hides.event,
-          show() { this.shown = true },
-          hide() { this.shown = false; hides.fire() },
-          dispose() { this.disposed = true },
-          type(value) { this.value = value; value_changes.fire(value) },
-          accept(index) { this.selectedItems = [this.items[index]]; accepts.fire() }
+          items, options, shown: true,
+          accept(index) { this.shown = false; resolve(items[index]) },
+          hide() { this.shown = false; resolve(undefined) }
         }
-        return quick_pick
-      },
+      }),
       get activeTextEditor() { return active_editor },
       onDidChangeActiveTextEditor: active_editors.event,
       tabGroups: { get all() { return tab_groups } },
@@ -452,10 +460,18 @@ export const start_host = async (t, source, settings, language = 'en') => {
   delete require.cache[extension_path]
   const extension = require(extension_path)
   Module._load = original_load
-  const api = await extension.activate(context)
+  const api = extension.activate(context)
+  // Activation starts the load without waiting for it; the tests look at the loaded notes.
+  await api.settled()
   return {
     /** The Markdown preview plugin activation exports; VS Code's preview passes it its markdown-it instance. */
     extend_markdown_it: md => api.extendMarkdownIt(md),
+    activations,
+    /** Install another extension contributing markdown-it plugins, which VS Code reports as a change of extensions. */
+    install(extension) {
+      all_extensions.unshift(installed(extension))
+      extension_changes.fire()
+    },
     get preview_refreshes() { return preview_refreshes },
     files,
     errors,
@@ -473,27 +489,6 @@ export const start_host = async (t, source, settings, language = 'en') => {
     },
     /** Run a registered command, as the Command Palette or a status bar click does. */
     command: (name, ...args) => commands.get(name)(...args),
-    /** The document selectors of the formatting providers registered, in registration order. */
-    get formatter_selectors() { return [...formatters].map(({ selector }) => selector) },
-    /**
-     * Run Format Document on a workspace file, as VS Code does with the first provider whose selector matches the file:
-     * the edits it returns, or null when no provider formats the file.
-     */
-    format_document(name) {
-      /* The document locates offsets in the file's text like the editors above, as tests use LF notes. */
-      const registration = [...formatters].find(({ selector }) => selector.some(({ pattern }) => matches_glob(pattern, name)))
-      if (!registration) return null
-      const text = files.get(name).text
-      const document = {
-        uri: uri(name),
-        getText: () => text,
-        positionAt: offset => {
-          const lines = text.slice(0, offset).split('\n')
-          return new Position(lines.length - 1, lines.at(-1).length)
-        }
-      }
-      return registration.provider.provideDocumentFormattingEdits(document, { tabSize: 4, insertSpaces: true }, {})
-    },
     /** Answer later warning notifications with this action. */
     answer_warnings(choice) { warning_choice = choice },
     state: tree.state,
@@ -570,6 +565,7 @@ export const start_host = async (t, source, settings, language = 'en') => {
       workspaces.fire()
     },
     fail_writes: error => { write_error = error },
+    fail_searches: error => { search_error = error },
     pause_writes() {
       let release
       hold_write = new Promise(resolve => { release = resolve })

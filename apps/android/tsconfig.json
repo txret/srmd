@@ -2,12 +2,8 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "composite": false,
-    "incremental": false,
-    "declaration": false,
-    "declarationMap": false,
-    "types": [],
-    "noEmit": true
+    "types": []
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/foam_preview.ts"]
 }

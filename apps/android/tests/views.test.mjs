@@ -1,23 +1,27 @@
-// The parts of the views that need no browser: links, rendering, settings, gestures, editor marks and changes.
+// The parts of the views that need no browser: links, rendering, settings, gestures and editor marks.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { ChangeSet, Text } from '@codemirror/state'
+import { Foam } from '../src/foam.ts'
 import { file_html, folder_url, link_target } from '../src/note_view.ts'
 import { app_settings, parse_list } from '../src/settings.ts'
 import { settles_open, swipe_axis } from '../src/gestures.ts'
-import { line_changes, srmd_marks } from '../src/editor.ts'
+import { srmd_marks } from '../src/editor.ts'
 import { row_html } from '../src/tree_view.ts'
 import * as tests from './views.test.mjs'
 
+/** The markdown-it of a folder without files, as a library composes it. */
+const md = new Foam(async () => '', path => path.endsWith('.md')).md
+
 /**
- * Links resolve against the file's folder and absolute paths against the notes folder; above it they lead nowhere. A
- * fragment alone names an element of the file. Web, mail and phone links open outside the app; other schemes lead
- * nowhere.
+ * Links resolve against the file's folder, and absolute paths against the app's origin, where the notes folder is
+ * `/notes/`, as Foam's links and markdown-it's write them; outside it they lead nowhere. A fragment alone names an
+ * element of the file. Web, mail and phone links open outside the app; other schemes lead nowhere.
  */
 export function test_links_lead_to_files_elements_or_urls() {
   assert.deepEqual(link_target('other.md', 'topic/a.sr.md'), { kind: 'file', path: 'topic/other.md', fragment: '' })
   assert.deepEqual(link_target('../b%20c.md#Heart%20rate', 'topic/a.sr.md'), { kind: 'file', path: 'b c.md', fragment: 'Heart rate' })
-  assert.deepEqual(link_target('/x/y.md', 'topic/a.sr.md'), { kind: 'file', path: 'x/y.md', fragment: '' })
+  assert.deepEqual(link_target('/notes/x/y.md#__block', 'topic/a.sr.md'), { kind: 'file', path: 'x/y.md', fragment: '__block' })
+  assert.equal(link_target('/x/y.md', 'topic/a.sr.md'), null)
   assert.equal(link_target('../../up.md', 'topic/a.sr.md'), null)
   assert.equal(link_target('//example.com/a.md', 'topic/a.sr.md'), null)
   assert.deepEqual(link_target('#user-content-fn-1', 'a.sr.md'), { kind: 'fragment', id: 'user-content-fn-1' })
@@ -29,11 +33,15 @@ export function test_links_lead_to_files_elements_or_urls() {
   assert.equal(folder_url('https://appassets.androidplatform.net', 'a.sr.md'), 'https://appassets.androidplatform.net/notes/')
 }
 
-/** Markdown and notes render with srmd, every cloze in the HTML; plain text is escaped and preformatted; raw HTML is escaped. */
+/**
+ * Markdown and notes render with the library's markdown-it, every cloze in the HTML, raw HTML as HTML, which the page's
+ * content policy keeps from running scripts, and absolute links below the notes folder; plain text is escaped and
+ * preformatted.
+ */
 export function test_files_render_by_kind() {
-  assert.equal(file_html('Q:: answer <b>x</b>', 'note', []), '<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">answer &lt;b&gt;x&lt;/b&gt;</span></p>')
-  assert.equal(file_html('# Title\n\nA ::>cloze<:: here', 'markdown', []), '<h1>Title</h1>\n<p>A <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">cloze</span> here</p>')
-  assert.equal(file_html('a < b\n  & c', 'text', []), '<pre class="plain">a &lt; b\n  &amp; c</pre>')
+  assert.equal(file_html('Q:: answer <b>x</b>', 'note', md), '<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">answer <b>x</b></span></p>')
+  assert.equal(file_html('# Title\n\nA ::>cloze<:: [here](/b.md)', 'markdown', md), '<h1>Title</h1>\n<p>A <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">cloze</span> <a href="/notes/b.md">here</a></p>')
+  assert.equal(file_html('a < b\n  & c', 'text', md), '<pre class="plain">a &lt; b\n  &amp; c</pre>')
 }
 
 /**
@@ -70,39 +78,19 @@ export function test_swipes_need_distance_and_a_clear_direction() {
 
 /**
  * The editor marks srmd's cloze markers, cloze contents and card metadata at the parser's token offsets: an implicit
- * opener's token includes its space, and the first cloze includes its card's reference.
+ * opener's token includes its space, and the first cloze ends before its card's reference.
  */
 export function test_the_editor_marks_srmd_syntax() {
   const text = 'Q:: answer[:1]\n\n[:1]: k 20261014040000 7 20261007120000 8.5 4.2 0 10 1'
   const marks = []
-  const cursor = srmd_marks(text, []).iter()
+  const cursor = srmd_marks(text, md).iter()
   for (; cursor.value; cursor.next()) marks.push([text.slice(cursor.from, cursor.to), cursor.value.spec.class])
   assert.deepEqual(marks, [
     [':: ', 'cm-srmd-marker'],
-    ['answer[:1]', 'cm-srmd-cloze'],
+    ['answer', 'cm-srmd-cloze'],
     ['[:1]', 'cm-srmd-metadata'],
     ['[:1]: k 20261014040000 7 20261007120000 8.5 4.2 0 10 1', 'cm-srmd-metadata']
   ])
-}
-
-/** The text CodeMirror holds after applying changes to text. */
-const apply_changes = (text, changes) => ChangeSet.of(changes, text.length).apply(Text.of(text.split('\n'))).toString()
-
-/**
- * Formatting changes the editor's text line by line: lines both texts have in the same order stay, so the cursor on
- * them stays too. Removed lines go with their line break, inserted ones come with theirs, and at the end of the text
- * the line break before them; lines without any in common are replaced.
- */
-export function test_line_changes_keep_the_lines_both_texts_have() {
-  const text = 'Q::\n* a\n* b\n\n\n[:1]: k'
-  const formatted = 'Q::\n\n- a\n- b\n\n[:1]: k\n'
-  assert.deepEqual(line_changes(text, formatted), [{ from: 4, to: 12 }, { from: 13, insert: '- a\n- b\n' }, { from: 21, insert: '\n' }])
-  assert.equal(apply_changes(text, line_changes(text, formatted)), formatted)
-  assert.deepEqual(line_changes('a\nx', 'a'), [{ from: 1, to: 3 }])
-  assert.equal(apply_changes('a\nx', line_changes('a\nx', 'a')), 'a')
-  assert.deepEqual(line_changes('b', 'a\nb'), [{ from: 0, insert: 'a\n' }])
-  assert.deepEqual(line_changes('a\nx\ny', 'b'), [{ from: 0, to: 5, insert: 'b' }])
-  assert.deepEqual(line_changes('same\n', 'same\n'), [])
 }
 
 /** A tree row shows its name, counts with a warning for problems, text matches, and Review when cards are due or new. */

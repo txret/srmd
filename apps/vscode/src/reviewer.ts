@@ -10,8 +10,11 @@ export interface CardMessage {
   ordinal: number
 }
 
-/** Messages to the extension: the document listens for cards, or the first rating chosen for a card. */
-export type ReviewerMessage = { type: 'ready' } | { type: 'review'; id: number; choice_id: string }
+/**
+ * Messages to the extension: the document listens for cards, the first rating chosen for a card, or a wiki link
+ * followed, with the workspace path and fragment it points at.
+ */
+export type ReviewerMessage = { type: 'ready' } | { type: 'review'; id: number; choice_id: string } | { type: 'open'; path: string }
 
 /** VS Code supplies this function inside each webview document. */
 declare function acquireVsCodeApi(): { postMessage(message: ReviewerMessage): void }
@@ -35,14 +38,15 @@ function start(container: HTMLElement, config: UIConfig): void {
     /** Ignore repeated clicks/shortcuts while the extension saves and sends the next card. */
     let submitted = false
     root.addEventListener('sr-event', (event: Event): void => {
-      /* Forward only the first rating choice; other UI events do not change scheduling. */
+      /* Forward a followed link, and only the first rating choice: other events do not change scheduling. */
       const detail = (event as CustomEvent<ReviewerEvent>).detail
+      if (detail?.type === 'link') return vscode.postMessage({ type: 'open', path: detail.data })
       if (submitted || detail?.type !== 'choice' || typeof detail.data !== 'string') return
       submitted = true
       vscode.postMessage({ type: 'review', id: card.id, choice_id: detail.data })
     })
     // Mounting in the task that inserted the markup hides the clozes before the browser can paint the card.
-    unmount = mount_ui(root, card.ordinal, config)
+    unmount = mount_ui(root, card.ordinal, config).unmount
   }
 
   window.addEventListener('message', (event: MessageEvent<CardMessage>) => {

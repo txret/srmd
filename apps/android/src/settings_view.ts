@@ -1,41 +1,9 @@
-/**
- * The settings page: the notes folder, which files are notes and open in the app, review options, formatting options,
- * Rescan now, log.
- */
+/** The settings page: the notes folder, which files are notes and open in the app, review options, Rescan now, log. */
 import { m } from '@srmd/l10n'
-import { format_choices, min_line_width } from '@srmd/parser'
 import { escape_html } from '@srmd/ui'
-import { extension_names } from '@srmd/workspace'
 import type { Root } from './bridge'
 import { icons } from './icons'
 import { parse_list, type AppSettings, type StoredSettings } from './settings'
-
-/** The formatting options chosen from a list, by their setting's name. */
-const format_selects = {
-  'format.wrap': 'wrap', 'format.numbering': 'numbering', 'format.bullet': 'bullet',
-  'format.tableDelimiters': 'table_delimiters', 'format.emphasis': 'emphasis', 'format.strong': 'strong'
-} as const
-
-/** A formatting setting chosen from a list. */
-type FormatSelect = keyof typeof format_selects
-
-/** Whether a control's name is a formatting setting chosen from a list. */
-const is_format_select = (name: string): name is FormatSelect => Object.hasOwn(format_selects, name)
-
-/**
- * The label of each value of the formatting options chosen from a list: words where they need translating, else the
- * Markdown the value writes.
- */
-function format_labels(): { [option in keyof typeof format_choices]: { [value: string]: string } } {
-  return {
-    wrap: { preserve: m.android_as_written(), always: m.android_wrap_always(), never: m.android_wrap_never() },
-    numbering: { increment: m.android_numbering_increment(), repeat: m.android_numbering_repeat() },
-    bullet: { '-': '- …', '*': '* …', '+': '+ …' },
-    table_delimiters: { compact: '|---|:-:|', padded: '| --- | :-: |' },
-    emphasis: { preserve: m.android_as_written(), asterisk: '*…*', underscore: '_…_' },
-    strong: { preserve: m.android_as_written(), asterisk: '**…**', underscore: '__…__' }
-  }
-}
 
 /** What the page's controls do. */
 export interface SettingsHandlers {
@@ -98,17 +66,6 @@ export class SettingsView {
     const current_order = settings.scheduler.queue_order.join()
     const options = orders.map(order =>
       `<option value="${order.join()}"${order.join() === current_order ? ' selected' : ''}>${escape_html(order.map(queue_name).join(' → '))}</option>`).join('')
-    const enabled = new Set(stored.extensions ?? [])
-    const labels = format_labels()
-    /** A formatting option's list, its value in effect selected. */
-    const choose = (name: FormatSelect, label: string): string => {
-      const option = format_selects[name]
-      const current: string = settings.format[option]
-      const items = format_choices[option].map(value =>
-        `<option value="${escape_html(value)}"${value === current ? ' selected' : ''}>${escape_html(labels[option][value])}</option>`)
-      return `<label class="field"><span class="label">${escape_html(label)}</span><select name="${name}">${items.join('')}</select></label>`
-    }
-    const width = settings.format.line_width
     this.element.innerHTML = `
 <header class="bar"><h1>${escape_html(m.android_settings())}</h1><button type="button" data-action="close" aria-label="${escape_html(m.android_close())}">${icons.close}</button></header>
 <div class="page">
@@ -132,17 +89,6 @@ export class SettingsView {
     <label class="field"><span class="label">${escape_html(m.android_queue_order())}</span><select name="queueOrder">${options}</select></label>
     ${check('inactive.front', m.android_inactive_front(), settings.inactive.front)}
     ${check('inactive.back', m.android_inactive_back(), settings.inactive.back)}
-    ${extension_names().map(name => check(`extension:${name}`, m.android_extension({ name }), enabled.has(name))).join('')}
-  </section>
-  <section>
-    <h2>${escape_html(m.android_formatting())}</h2>
-    ${choose('format.wrap', m.android_format_wrap())}
-    <label class="field"><span class="label">${escape_html(m.android_line_width())}</span><input type="number" name="format.lineWidth" min="${min_line_width}" step="1" inputmode="numeric" value="${width}"><span class="hint">${escape_html(m.android_line_width_hint())}</span></label>
-    ${choose('format.numbering', m.android_numbering())}
-    ${choose('format.bullet', m.android_bullet())}
-    ${choose('format.tableDelimiters', m.android_table_delimiters())}
-    ${choose('format.emphasis', m.android_emphasis())}
-    ${choose('format.strong', m.android_strong())}
   </section>
   <section>
     <details><summary>${escape_html(m.android_log())}</summary><pre class="log">${escape_html(log.join('\n'))}</pre></details>
@@ -164,10 +110,7 @@ export class SettingsView {
 
   /** Store a control's new value when valid, marking the control invalid otherwise. */
   private changed(control: HTMLInputElement | HTMLSelectElement): void {
-    /*
-     * Convert by control: lists, time, queue order, flags, extensions and formatting options; empty lists are invalid
-     * where a default would surprise, as is a line width too narrow for words.
-     */
+    /* Convert by control: lists, time, queue order and flags; empty lists are invalid where a default would surprise. */
     const name = control.name
     const value = control.value
     const stored = this.stored
@@ -185,16 +128,6 @@ export class SettingsView {
       stored.queueOrder = value.split(',')
     } else if (name === 'inactive.front' || name === 'inactive.back') {
       stored[name] = (control as HTMLInputElement).checked
-    } else if (name.startsWith('extension:')) {
-      const extension = name.slice('extension:'.length)
-      const enabled = (stored.extensions ?? []).filter(other => other !== extension)
-      stored.extensions = (control as HTMLInputElement).checked ? [...enabled, extension] : enabled
-    } else if (name === 'format.lineWidth') {
-      const width = Number(value)
-      valid = Number.isSafeInteger(width) && width >= min_line_width
-      if (valid) stored['format.lineWidth'] = width
-    } else if (is_format_select(name)) {
-      stored[name] = value
     } else return
     control.classList.toggle('invalid', !valid)
     control.setAttribute('aria-invalid', String(!valid))

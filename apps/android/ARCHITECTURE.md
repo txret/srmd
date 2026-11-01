@@ -99,8 +99,7 @@ predictive Back animates leaving the app only when nothing is.
 - **Search all files**, below the tree. The tree shows only the files whose path contains every word of the query or
   whose text contains the whole query, ignoring case, with their folders expanded; a file matching in its text shows
   its number of matches.
-- **Bottom bar**: the view/edit toggle, Format for the Markdown file being edited, Review for the shown note, and the
-  settings cogwheel.
+- **Bottom bar**: the view/edit toggle, Review for the shown note, and the settings cogwheel.
 
 ### Files
 
@@ -122,9 +121,7 @@ A page of the web app. Each control applies as soon as it changes, when valid:
 - note suffixes, the Markdown and text extensions opened in the app, and the names skipped (`.*`, hidden files, and
   `node_modules` by default; `*` stands for any characters);
 - the review settings of the VS Code host: when the review day starts, the order of the queues, inactive clozes on
-  the front and back, and the optional Markdown extensions;
-- its formatting settings: how paragraph lines wrap and at which width, list numbering and bullets, table delimiter
-  rows, and the delimiters of emphasis and strong emphasis;
+  the front and back;
 - the log: notes skipped, failed writes, dropped ratings and invalid settings.
 
 ## Components
@@ -168,7 +165,8 @@ repository's snake_case.
 - `onCreate()`: draws edge to edge; stops with a message when the WebView lacks web message listeners; restores the
   notes folder while its access is still granted; configures the WebView (JavaScript and DOM storage on, file and
   content access off, mixed content never, pinch zoom); routes requests through `WebViewAssetLoader`; registers the
-  `Bridge` for the app's origin only; loads `https://appassets.androidplatform.net/app/index.html`.
+  `Bridge` for the app's origin only; loads `https://appassets.androidplatform.net/app/index.html`, the only page the
+  WebView may load (see "URLs").
 - Back: an `OnBackPressedCallback`, enabled while the page reports something open, sending the `back` event; the
   manifest enables predictive Back.
 - `onPause()` / `onResume()`: send `pause` and `resume` with the time away.
@@ -203,27 +201,30 @@ where a provider lacks it), never plain `w`, which some providers leave the old 
 
 ### Web app (TypeScript, `src/`)
 
-| Module              | Responsibility                                                                                                  |
-|---------------------|-----------------------------------------------------------------------------------------------------------------|
-| `main.ts`           | Starts the app: connects the bridge, asks for settings, folder, language and insets, opens the cache.           |
-| `bridge.ts`         | Typed requests with promised replies; event subscriptions; `BridgeError` with the shell's code.                 |
-| `cache.ts`          | IndexedDB: the texts of files read, with their times and sizes, and a few values kept between starts.           |
-| `storage.ts`        | `AndroidStorage`: the shared `Storage` over the bridge, loading from the cache while the scan shows it current. |
-| `library.ts`        | `Library`: scans, loads notes into the shared `Workspace` and applies rescans; reads shown files.               |
-| `library_search.ts` | `search_files()`: the drawer search's matches by path and text.                                                 |
-| `settings.ts`       | The stored settings, their defaults and validation; lists typed into fields.                                    |
-| `app.ts`            | `App`: the shown file, the stack of layers Back closes, and the flows between views.                            |
-| `note_view.ts`      | `NoteView`: a file in view mode; where links lead (`link_target()`).                                            |
-| `review_view.ts`    | `ReviewView`: one card at a time in the shared reviewer controls.                                               |
-| `editor.ts`         | `Editor`: CodeMirror with Markdown and srmd highlighting, the note search's matches, and formatting.            |
-| `tree_view.ts`      | `TreeView`: the drawer's rows (see `tree_rows()`), taps delegated.                                              |
-| `drawer.ts`         | `Drawer`: slid out, hidden or following a finger, with its scrim.                                               |
-| `note_search.ts`    | `NoteSearch`: the bar searching the shown file: the shared `Search` in view mode, the editor's in edit.         |
-| `settings_view.ts`  | `SettingsView`: the settings page.                                                                              |
-| `dialog.ts`         | `Dialog`, questions with a few answers, and `Toast`, short messages.                                            |
-| `gestures.ts`       | The swipes above, from passive touch events.                                                                    |
-| `icons.ts`          | The buttons' icons, as inline SVG.                                                                              |
-| `media/`            | The page, `index.html`, and its layout and theme, `app.css`; the reviewer styles come from shared/ui.           |
+| Module                | Responsibility                                                                                                    |
+|-----------------------|-------------------------------------------------------------------------------------------------------------------|
+| `main.ts`             | Starts the app: connects the bridge, asks for settings, folder, language and insets, opens the cache.             |
+| `bridge.ts`           | Typed requests with promised replies; event subscriptions; `BridgeError` with the shell's code.                   |
+| `cache.ts`            | IndexedDB: the texts of files read, with their times and sizes, and a few values kept between starts.             |
+| `storage.ts`          | `AndroidStorage`: the shared `Storage` over the bridge, loading from the cache while the scan shows it current.   |
+| `library.ts`          | `Library`: scans, loads notes into the shared `Workspace` and applies rescans; reads shown files.                 |
+| `library_search.ts`   | `search_files()`: the drawer search's matches by path and text.                                                   |
+| `settings.ts`         | The stored settings, their defaults and validation; lists typed into fields.                                      |
+| `app.ts`              | `App`: the shown file, the stack of layers Back closes, and the flows between views.                              |
+| `note_view.ts`        | `NoteView`: a file in view mode; where links lead (`link_target()`).                                              |
+| `review_view.ts`      | `ReviewView`: one card at a time in the shared reviewer controls.                                                 |
+| `editor.ts`           | `Editor`: CodeMirror with Markdown and srmd highlighting, and CodeMirror's search panel.                          |
+| `foam.ts`             | `Foam`: Foam's workspace of the folder and its preview pipeline with srmd; `prepare()` reads what a render needs. |
+| `foam_fs.ts`          | `readFileSync()` for Foam's embed plugin, from the texts `prepare()` read.                                        |
+| `foam_preview.ts`     | Re-exports Foam's `createFoamMarkdownIt()` from the submodule; `foam_preview_types.d.ts` declares its types.      |
+| `tree_view.ts`        | `TreeView`: the drawer's rows (see `tree_rows()`), taps delegated.                                                |
+| `drawer.ts`           | `Drawer`: slid out, hidden or following a finger, with its scrim.                                                 |
+| `note_search.ts`      | `NoteSearch`: the bar searching the file shown in view mode, with the shared `Search`.                            |
+| `settings_view.ts`    | `SettingsView`: the settings page.                                                                                |
+| `dialog.ts`           | `Dialog`, questions with a few answers, and `Toast`, short messages.                                              |
+| `gestures.ts`         | The swipes above, from passive touch events.                                                                      |
+| `icons.ts`            | The buttons' icons, as inline SVG.                                                                                |
+| `media/`              | The page, `index.html`, and its layout and theme, `app.css`; the reviewer styles come from shared/ui.             |
 
 `App` holds the screen's state and is the only place it changes; the views render. What is open forms one stack, so
 Back needs no rules of its own:
@@ -260,7 +261,7 @@ After every change of the stack, `App` sends `back.set` when whether anything is
 
 | Component     | Use on Android                                                                                                         |
 |---------------|------------------------------------------------------------------------------------------------------------------------|
-| parser        | `parse()`/`render()` for view and review mode; editor highlighting from the parse's own tokens; `format()`.            |
+| parser        | `parse()`/`render()` for view and review mode; editor highlighting from the parse's own tokens.                        |
 | scheduler     | State, queues and counts for the tree and reviews, as in VS Code; `compare_siblings()` orders the tree's other files.  |
 | reviewer      | `prepare_review()` through the workspace, `review_rating()`, `problem_text()`.                                         |
 | ui            | `compile_html()`, `mount()`, `Search`, `UIConfig` and the reviewer styles, with the app's theme layer over them.       |
@@ -269,18 +270,9 @@ After every change of the stack, `App` sends `back.set` when whether anything is
 
 ### The shared workspace component
 
-Both apps must load and save notes the same way; a difference would mean one app damaging what the other wrote. The
-logic the VS Code host had is in `shared/workspace/` (ARCHITECTURE.md, "Workspace"):
-
-- from `workspace.ts`: the task queue, loading notes and persisting resolved hints, applying changes, reloading a
-  changed note, and saving with the note's version;
-- from `review_panel.ts`: selecting the next card and rereading its note, and saving a rating unless the note
-  changed (`next_card()`, `rate()`);
-- from `settings.ts`: the settings model and its validation (`read_settings()`).
-
-The VS Code host extends the shared `Workspace` with its file search, watchers, progress notification and recount
-timer, and keeps its views and review tab. Android uses it through `Library`. New for Android: `save_text()`, saving
-an edit unless the file changed since editing began, and the file tree of all files (`file_kind()`,
+Both apps load and save notes through `shared/workspace/` (ARCHITECTURE.md, "Workspace"), so neither can damage what the
+other wrote. The VS Code host extends it with its file search, watchers, progress notification and recount timer;
+Android uses it through `Library`, with `save_text()` for edits and the file tree of all files (`file_kind()`,
 `folder_children()`, `tree_rows()`).
 
 ## Interfaces
@@ -325,19 +317,11 @@ The shell sends events, `{ event: string; params: object }`, once the page has s
 
 ### Storage and workspace
 
-The shared workspace's file access, which Android implements over the bridge and VS Code over its file system API:
+Android implements the shared workspace's `Storage` (`read()`, `write()` and `load()`, ARCHITECTURE.md, "Workspace")
+over the bridge.
 
-```ts
-interface Storage {
-  /** The file's current text. */
-  read(path: string): Promise<string>
-  write(path: string, text: string): Promise<void>
-  /** The text to load a note from at start, such as a cached text the host checked against the file; read() without. */
-  load?(path: string): Promise<string>
-}
-```
-
-`AndroidStorage` keeps the text of every file it reads or writes in IndexedDB, with its time and size. `load()` returns
+`AndroidStorage` keeps the text of every file it reads or writes in IndexedDB, with its time and size, until a scan no
+longer lists the file, also when it went while the app was closed. `load()` returns
 the cached text while the last scan shows the same time and size, so a start reads only changed notes, and those with
 `files.load`: the content alone, paired with the scan's time and size, which saves the two provider queries `files.read`
 makes around each read. As the scan came first, a file changed since pairs newer text with an older time, never the
@@ -347,36 +331,10 @@ decides what is written. Every write names the time of the text it is based on, 
 and the shell refuses it when the file changed since, as when a sync wrote it; this mostly guards resolved hints, which
 are written from the text loaded at start.
 
-```ts
-class Workspace {
-  constructor(storage: Storage, settings: WorkspaceSettings, log: Log, events: WorkspaceEvents)
-  readonly state: State
-  readonly scheduler: Scheduler
-  /** Run a task after the earlier ones; every task that reads or writes notes or state runs as one. */
-  run<T>(task: () => Promise<T>): Promise<T>
-  /** Read, parse and insert notes with up to eight reads in flight; persist resolved hints. */
-  add(paths: string[]): Promise<number>
-  /** Remove notes and read changed ones, then publish counts, persist hints and announce new problems. */
-  apply(remove: string[], load: Iterable<string>): Promise<void>
-  /** The scope's next card, read and prepared for display; null when none is left. */
-  next_card(scope: string): Promise<PreparedCard | null>
-  /** Save a rating: 'saved', 'changed' when the note changed since its card was shown, or 'failed'. */
-  rate(card: PreparedCard, rating: ReviewRating): Promise<RateResult>
-  /** Save an edit made from base; 'changed' leaves a file that no longer holds base unwritten; null base overwrites. */
-  save_text(path: string, text: string, base: string | null): Promise<'saved' | 'changed'>
-}
-
-interface WorkspaceEvents {
-  /** Counts were recounted: the tree redraws. */
-  refreshed(): Promise<void>
-  /** count notes newly have problems (see ARCHITECTURE.md, "Problems and logging"). */
-  problems(count: number): void
-}
-```
-
-`Library` composes them for Android: its `scan()` lists the folder through the shell, then in one task either loads
-every note into an emptied workspace (the first scan, or the first after settings changed which files are notes or
-how they parse) or compares the listing with the storage's entries and applies the differences. Its `read()` reads a
+`Library` uses the shared `Workspace` (ARCHITECTURE.md, "Workspace") for Android: its `scan()` lists the folder
+through the shell, then in one task either loads every note into an emptied workspace (the first scan, or the first
+after settings changed which files show or are notes) or compares the listing with the storage's entries and applies
+the differences. Its `read()` reads a
 file for showing and, for a loaded note whose text differs from its version, reloads it in the background.
 
 ### Tree rows
@@ -401,11 +359,18 @@ scheduler's notes and folders.
 
 Before a file or a card is inserted, the page's `<base>` moves to `.../notes/<file's folder>/`, so relative images load
 from the notes folder, as in the VS Code review tab. The page's own files use absolute paths. Its content security
-policy allows scripts from the app only, styles from the app and inline (CodeMirror inserts its own), and images and
-media from the app and `data:`. The APK requests no permissions, not even `INTERNET`: the web app and its libraries,
-CodeMirror included, are bundled, so an image on the web shows as missing. Notes render without raw HTML, as in VS Code,
-so a note cannot run script. Links never navigate the page: the app resolves them itself (`link_target()`), against the
-file's folder, absolute paths against the notes folder, and only web, mail, phone and map links leave the app.
+policy allows scripts from the app only, styles from the app and inline (CodeMirror inserts its own), images and
+media from the app and `data:`, and no form submissions. The APK requests no permissions, not even `INTERNET`: the web
+app and its libraries, CodeMirror included, are bundled, so an image on the web shows as missing. Links never navigate
+the page: the app resolves them itself (`link_target()`), against the file's folder, absolute paths against the notes
+folder, and only web, mail, phone and map links leave the app.
+
+Notes render their raw HTML, as Foam's pipeline renders it, and what it holds is the user's: the app only keeps it from
+running as code. Its script elements do not run, as the views insert markup with `innerHTML`, and the policy allows no
+inline script, frames or objects. As the notes folder shares the page's origin and so the bridge, the shell lets the
+WebView load the web app's page alone (`isAppPage()`): `shouldOverrideUrlLoading()` cancels a navigation to anything
+else of the origin, such as a note's meta refresh pointing at an HTML file of the folder, and `shouldInterceptRequest()`
+answers a page load it was not offered with an empty page, so no file of the folder ever becomes the page.
 
 ## Data flow
 
@@ -430,16 +395,32 @@ before an edit is saved. So the shown file is always current, and a change is ne
 this way is reloaded, so its cards and counts follow. Counts are recounted every minute while the app is in the
 foreground, as intraday cards become due.
 
-**View.** `NoteView` renders Markdown and notes with `render(parse(text, extensions).events)` and the app's reader
-styles: every cloze shown and outlined, as in the VS Code Markdown preview. Text files show preformatted. Wide tables
-and code blocks scroll sideways inside the note. A link to a file of the folder opens it as in "Files", trying the
-Markdown and note extensions when the link has none, as Foam writes them; a link to a fragment scrolls to it. Foam's
-wiki links render as text, through the optional `foam-placeholders` extension.
+**View.** `NoteView` renders Markdown and notes with `render(parse(text, md))`, md the library's (see "Foam"), and the
+app's reader styles: every cloze shown and outlined, as in the VS Code Markdown preview. Text files show preformatted.
+Wide tables and code blocks scroll sideways inside the note. A link to a file of the folder opens it as in "Files",
+trying the Markdown and note extensions when the link has none, as Foam writes them; a link to a fragment scrolls to
+it. A file with wiki links renders at once, then again once Foam has read the files they point at, with their titles
+and the files embedded, unless another file or mode shows by then.
+
+**Foam.** `Foam` (`foam.ts`) holds Foam's workspace and parser over the folder's Markdown files, all the app opens
+as Markdown, notes included, whatever their extension, and its attachments, which every scan lists to it, and the markdown-it every file is rendered with and every card shown and
+saved with, while notes load with srmd's own (ARCHITECTURE.md, "Workspace"): Foam's preview pipeline,
+`createFoamMarkdownIt()` from the Foam submodule (ARCHITECTURE.md, "Foam in the Android app"), on srmd's options
+without links for names lacking a scheme, with srmd's plugin, recording positions, as its extension. Foam
+knows the folder's files by name; Foam's plugins render synchronously, so before a file renders, `prepare()` reads
+and parses the files its wiki links and embeds point at, three levels of embeds deep, for their titles, sections and
+blocks, and keeps their texts for Foam's embed plugin, which reads them with `readFileSync()` (`foam_fs.ts`). The
+library's workspace calls it before a card renders; view mode before its second render. Embedded files render through
+an instance that marks the parse embedded, so their clozes, a note's or other Markdown's, have ordinal 0 and no card.
+Absolute paths, which Foam writes for wiki links and image embeds, go below `/notes/`, where the shell serves
+the folder: the link resolver writes them so, and markdown-it's `normalizeLink()` for images and Markdown links.
 
 **Review.** As the VS Code host's review loop (ARCHITECTURE.md, "Review and persistence"): `Workspace.next_card()`
 in a task, `compile_html()` and `mount()`, the first rating saved through `Workspace.rate()` in a task, then the next
-card. A rating for a note that changed meanwhile is dropped with a message; a failed save ends the review, leaving the
-card due. When no card is left, review ends on the last note in view mode.
+card, with its note's wiki links and embeds resolved. Tapping a link in a review opens it over the review, as in view
+mode, except in a hidden cloze, which the tap reveals. A rating for a note that changed meanwhile is dropped with a
+message; a failed save ends the review, leaving the card due. When no card is left, review ends on the last note in
+view mode.
 
 **Edit.** `Editor` opens the file's text, read anew, which becomes the edit layer's base; files using CRLF line breaks
 keep them. Leaving edit mode with a change, by the toggle, Back or opening another file, asks: **Save**, **Discard** or
@@ -449,15 +430,10 @@ file changed meanwhile, for instance by a sync, it is not overwritten: a second 
 cards. On `pause` the editor's text is kept as a draft in IndexedDB, which is not saving: if Android ends the app, the
 next start reopens edit mode with the draft, over the file it started from.
 
-**Format.** In edit mode of a Markdown file, the drawer's Format, or Shift+Alt+F in CodeMirror, formats the text with
-the shared `format()`, the file's extensions and the formatting settings. The editor applies the result as changes of
-the lines that differ (`line_changes()`, a longest common subsequence of lines), so the cursor and search marks on the
-others stay, in one step of the history that typing does not join. A toast says when the text is formatted already, or
-when `format()` refused it, as it would render differently.
-
-**Note search.** View mode uses the shared `Search`, which draws highlight boxes over the rendered file without
-changing it; edit mode marks the matches in CodeMirror; review mode opens the reviewer's own search. The bar shows
-which match of how many is current and moves between them both ways.
+**Note search.** View mode's bar uses the shared `Search`, which draws highlight boxes over the rendered file without
+changing it, and shows which match of how many is current, moving between them both ways. Edit mode opens CodeMirror's
+own search panel, with replacing too, and review mode the reviewer's own search; both report opening and closing, also
+by their own keys and buttons, so the search is a layer Back closes.
 
 **Search all files.** `search_files()` matches the query against paths and against the texts the cache holds while
 current. Files not read before are read in the background on the first search, the matches growing as they arrive.
@@ -501,9 +477,10 @@ The questions this design left open, answered:
 1. **The shared workspace component.** The VS Code host's loading, review and saving logic moved to
    `shared/workspace/`, and both hosts use it.
 2. **Scanning on return.** After 15 minutes away, besides start, settings and Rescan now.
-3. **Plain Markdown files** render with srmd, like notes; only notes are reviewed.
+3. **Plain Markdown files** render with srmd, like notes, also where a note embeds them; only notes are reviewed.
 4. **Files opened in the app.** The common Markdown and plain-text extensions, editable in the settings.
-5. **Wiki links** render as text for now; opening their notes needs a rendering extension resolving names to files.
+5. **Wiki links and embeds** render with Foam's own preview pipeline, bundled from the Foam submodule, so the app
+   shows and follows them as Foam does without Foam.
 6. **Folder access.** The Storage Access Framework, which works for any folder the picker offers, rather than the
    "All files access" permission, which would reach the whole device.
 7. **Minimum Android version.** 10 (API 29); the WebView must support web message listeners, as any updated one does.

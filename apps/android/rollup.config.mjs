@@ -3,8 +3,10 @@ import { fileURLToPath } from 'node:url'
 import { basename, dirname, resolve } from 'node:path'
 
 import commonjs from '@rollup/plugin-commonjs'
+import json from '@rollup/plugin-json'
 import nodeResolve from '@rollup/plugin-node-resolve'
 import esbuild from 'rollup-plugin-esbuild'
+import { foam } from './scripts/rollup_foam.mjs'
 
 const dir = dirname(fileURLToPath(import.meta.url))
 
@@ -25,6 +27,19 @@ const copy_static = () => ({
   }
 })
 
+/**
+ * Resolve vfile's requires of its Node-only files, `./minpath` and `./minproc`, to the browser files its package's
+ * `browser` field names, which node-resolve misses for requires without an extension. vfile comes with foam-core's
+ * Markdown parser.
+ */
+const vfile_browser = () => ({
+  name: 'vfile-browser',
+  resolveId(source, importer) {
+    if (!importer || !/[\\/]vfile[\\/]lib[\\/][^\\/]+$/.test(importer) || !/^\.\/(?:minpath|minproc)(?:\.js)?$/.test(source)) return null
+    return resolve(dirname(importer), source.replace(/(?:\.js)?$/, '.browser.js'))
+  }
+})
+
 export default {
   input: resolve(dir, 'src/main.ts'),
   output: {
@@ -34,10 +49,18 @@ export default {
     sourcemap: true
   },
   plugins: [
+    vfile_browser(),
+    // Foam from the submodule, as Foam's web build bundles it, and only as far as the app uses it.
+    foam(),
     // The shared components resolve as workspace packages, whose package.json points at their TypeScript source.
     nodeResolve({ browser: true, extensions: ['.mjs', '.js', '.json', '.ts'] }),
     commonjs(),
-    esbuild({ include: /\.[jt]s$/, sourceMap: true, minify: true, target: 'chrome100', tsconfig: resolve(dir, '../../tsconfig.base.json') }),
+    // foam-core's dependencies import JSON data, such as HTML entity tables.
+    json(),
+    esbuild({
+      include: /\.[jt]s$/, sourceMap: true, minify: true, target: 'chrome100',
+      tsconfig: resolve(dir, '../../tsconfig.base.json')
+    }),
     copy_static()
   ]
 }

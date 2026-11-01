@@ -283,10 +283,50 @@ html.keyboard #handle {
 #editor .cm-srmd-metadata * {
     color: var(--muted);
 }
-#editor .cm-search-match {
-    background: var(--match);
+/* CodeMirror's search panel, below the text, as the app's search bar, with controls sized for touch. */
+#editor .cm-panels {
+    background: var(--bg2);
+    color: var(--fg);
+    border-top: 1px solid var(--line);
 }
-#editor .cm-search-match.current {
+#editor .cm-search {
+    padding: 6px 44px 6px 6px;
+}
+#editor .cm-search .cm-textfield,
+#editor .cm-search .cm-button {
+    height: 36px;
+    box-sizing: border-box;
+    font: inherit;
+    color: var(--fg);
+    border-radius: 18px;
+    padding: 0 14px;
+}
+#editor .cm-search .cm-textfield {
+    background: var(--bg);
+    border: 1px solid var(--line);
+    outline: none;
+}
+#editor .cm-search .cm-textfield:focus {
+    border-color: var(--accent);
+}
+#editor .cm-search .cm-button {
+    background: var(--bg3);
+    border: none;
+}
+#editor .cm-search label {
+    font-size: inherit;
+}
+#editor .cm-search [name="close"] {
+    width: 40px;
+    height: 40px;
+    font-size: 24px;
+    color: var(--fg);
+}
+#editor .cm-searchMatch {
+    background: var(--match);
+    outline: none;
+}
+#editor .cm-searchMatch-selected {
     background: var(--match-current);
 }
 #editor .cm-md-heading {

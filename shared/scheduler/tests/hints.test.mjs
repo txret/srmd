@@ -37,7 +37,7 @@ C:: c[:3]
   const original = structuredClone(parsed.scheduling)
   const { note, scheduling_changed } = scheduler.create_note('note.sr.md', parsed.scheduling, new Date('2026-10-10T12:00:00+02:00'), () => 0)
   assert.equal(scheduling_changed, true)
-  const saved = persist_hints(parsed.source, parsed.hints, note.cards)
+  const saved = persist_hints(parsed, note.cards)
   assert.equal(saved, `
 A:: a[:1]
 
@@ -80,7 +80,7 @@ export function test_a_bang_hint_takes_the_least_loaded_day_7_to_21_days_ahead(t
   free.state.config.rollover = 16200000
   const all_free = parse('Q:: answer[:1]\n\n[:1]: ! 0 0 0 0 0 3 0 0\n')
   const free_note = free.create_note('note.sr.md', all_free.scheduling, new Date('2026-10-10T12:00:00+02:00'), () => 0).note
-  assert.equal(persist_hints(all_free.source, all_free.hints, free_note.cards), 'Q:: answer[:1]\n\n[:1]: k 20261017043000 0 0 0 0 3 0 0\n')
+  assert.equal(persist_hints(all_free, free_note.cards), 'Q:: answer[:1]\n\n[:1]: k 20261017043000 0 0 0 0 3 0 0\n')
 
   // Day 7 busy, rollover 04:00; the other fields stay.
   const day_7 = new Scheduler()
@@ -97,7 +97,7 @@ export function test_a_bang_hint_takes_the_least_loaded_day_7_to_21_days_ahead(t
     ref: 7, state: 'k', due: '20261018040000', scheduled_days: 0, last_review: '0',
     stability: 12.5, difficulty: 5.1, learning_steps: 3, reps: 10, lapses: 2, ordinal: 1
   }])
-  assert.equal(persist_hints(day_7_busy.source, day_7_busy.hints, day_7_note.cards), 'Q:: answer[:7]\n\n[:7]: k 20261018040000 0 0 12.5 5.1 3 10 2\n')
+  assert.equal(persist_hints(day_7_busy, day_7_note.cards), 'Q:: answer[:7]\n\n[:7]: k 20261018040000 0 0 12.5 5.1 3 10 2\n')
   assert.equal(random_calls, 1)
 
   // Days 7 to 20 busy, at 2026-09-24 12:00.
@@ -112,7 +112,7 @@ export function test_a_bang_hint_takes_the_least_loaded_day_7_to_21_days_ahead(t
   ])).note])
   const days_7_to_20_busy = parse('Q:: answer[:1]\n\n[:1]: ! 0 0 0 0 0 0 0 0\n')
   const crowded_note = crowded.create_note('note.sr.md', days_7_to_20_busy.scheduling).note
-  assert.equal(persist_hints(days_7_to_20_busy.source, days_7_to_20_busy.hints, crowded_note.cards), 'Q:: answer[:1]\n\n[:1]: k 20261015040000 0 0 0 0 0 0 0\n')
+  assert.equal(persist_hints(days_7_to_20_busy, crowded_note.cards), 'Q:: answer[:1]\n\n[:1]: k 20261015040000 0 0 0 0 0 0 0\n')
 }
 
 /** Hints resolve in card order, so a `!` hint counts the days earlier hints of the same note took: two pick different days. */
@@ -203,7 +203,7 @@ export function test_a_hint_beyond_the_supported_range_is_capped(t) {
   const { note, scheduling_changed } = scheduler.create_note('note.sr.md', parsed.scheduling)
   assert.equal(scheduling_changed, true)
   assert.equal(note.cards[0].due, serialize_date(add_review_days(new Date(), MAX_HINT_DAYS, 4 * 3600000)))
-  assert.equal(parse(persist_hints(parsed.source, parsed.hints, note.cards)).scheduling[0].state, 'k')
+  assert.equal(parse(persist_hints(parsed, note.cards)).scheduling[0].state, 'k')
   // An unbounded interval would make an invalid date, which cannot be written.
   assert.throws(() => serialize_date(new Date(NaN)), RangeError)
 }

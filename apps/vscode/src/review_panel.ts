@@ -1,4 +1,5 @@
 import * as vscode from 'vscode'
+import type MarkdownIt from 'markdown-it'
 import { getLocale, m } from '@srmd/l10n'
 import { get_name, type ReviewRating } from '@srmd/scheduler'
 import { review_rating, type ReviewData } from '@srmd/reviewer'
@@ -17,6 +18,9 @@ type CardResult = { type: 'rated'; rating: ReviewRating } | { type: 'closed' } |
  *
  * The webview document is set once per tab. It reports `ready` when it listens, then receives each card
  * as a message and answers with the card's rating, so cards change without reloading scripts or styles.
+ *
+ * Cards are shown and saved with markdown-it composed of every extension's plugins (see markdown.ts), which the
+ * workspace uses from the first card on.
  */
 export class ReviewPanel implements vscode.Disposable {
   /** The open review tab, or null. */
@@ -34,10 +38,14 @@ export class ReviewPanel implements vscode.Disposable {
   /** Identifies each card sent, so a rating for an earlier card is ignored. */
   private next_id = 1
 
-  /** Serve cards from workspace, rendering them with the shared reviewer and the extension's media files; log records failures. */
+  /**
+   * Serve cards from workspace, rendering them with the shared reviewer and the extension's media files; log records
+   * failures, and markdown gives the instance cards are shown and saved with, composing it when first asked.
+   */
   constructor(
     private readonly extension_uri: vscode.Uri, private readonly workspace: Workspace,
-    private readonly config: UIConfig, private readonly log: vscode.LogOutputChannel
+    private readonly config: UIConfig, private readonly log: vscode.LogOutputChannel,
+    private readonly markdown: () => Promise<MarkdownIt>
   ) {}
 
   /**
@@ -62,7 +70,7 @@ export class ReviewPanel implements vscode.Disposable {
     try {
       await this.run(panel)
     } catch (error: unknown) {
-      const message = m.vscode_review_failed({ detail: error_text(error) })
+      const message = m.workspace_review_failed({ detail: error_text(error) })
       this.log.error(message)
       void vscode.window.showErrorMessage(message)
     } finally {
@@ -85,14 +93,24 @@ export class ReviewPanel implements vscode.Disposable {
     /* Find an open tab for the note, show the note there or beside the review, then place the cursor at the card. */
     if (!this.panel || !this.shown) return
     const { path, ordinal, parsed } = this.shown
+    const editor = await this.open_file(path)
+    // The card was shown from this parse, so its first cloze's line and offset locate it in the note's text, whose
+    // lines are the document's.
+    const { line, offset } = parsed.groups[ordinal - 1].first_cloze.start
+    const position = new vscode.Position(line - 1, offset - parsed.text.lastIndexOf('\n', offset - 1) - 1)
+    editor.selection = new vscode.Selection(position, position)
+    editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenterIfOutsideViewport)
+  }
+
+  /**
+   * Show a file, such as the shown note or one a wiki link points at: in the tab group that already has it open,
+   * otherwise in a new tab beside the review, which stays visible.
+   */
+  private async open_file(path: string): Promise<vscode.TextEditor> {
     const uri = str_to_uri(path)
     const group = vscode.window.tabGroups.all.find(group => group.tabs.some(tab =>
       tab.input instanceof vscode.TabInputText && tab.input.uri.toString() === uri.toString()))
-    const editor = await vscode.window.showTextDocument(uri, { viewColumn: group?.viewColumn ?? vscode.ViewColumn.Beside, preview: false })
-    // The card was shown from this parse, so its offsets locate the cloze in the note's text.
-    const position = editor.document.positionAt(parsed.groups[ordinal - 1].first_cloze.start.offset)
-    editor.selection = new vscode.Selection(position, position)
-    editor.revealRange(new vscode.Range(position, position), vscode.TextEditorRevealType.InCenterIfOutsideViewport)
+    return vscode.window.showTextDocument(uri, { viewColumn: group?.viewColumn ?? vscode.ViewColumn.Beside, preview: false })
   }
 
   /** Close the tab, ending its review; a later review opens a new one. */
@@ -125,6 +143,8 @@ export class ReviewPanel implements vscode.Disposable {
       } else if (message?.type === 'review' && message.id === this.card?.id && typeof message.choice_id === 'string') {
         const rating = review_rating(message.choice_id)
         if (rating !== null) this.settle?.({ type: 'rated', rating })
+      } else if (message?.type === 'open' && typeof message.path === 'string') {
+        void this.open_file(message.path.split('#')[0].replace(/^\//, ''))
       }
     })
     panel.onDidDispose(() => {
@@ -164,10 +184,18 @@ export class ReviewPanel implements vscode.Disposable {
 
   /** Select, display, rate and save cards from the current scope until it runs out or the tab closes. */
   private async run(panel: vscode.WebviewPanel): Promise<void> {
-    /* Each iteration reads the scope anew, so a retarget needs no new loop. */
+    /*
+     * Each iteration reads the scope anew, so a retarget needs no new loop. The instance is composed outside the
+     * workspace's tasks, as activating other extensions can take long, and used from the task selecting the card on.
+     */
     while (this.panel === panel) {
       const scope = this.scope
-      const card = await this.workspace.run(() => this.workspace.next_card(scope))
+      const md = await this.markdown()
+      if (this.panel !== panel) return
+      const card = await this.workspace.run(async () => {
+        this.workspace.use(md)
+        return this.workspace.next_card(scope)
+      })
       if (this.panel !== panel) return
       // A retarget while the card was being prepared selects again from the new scope.
       if (scope !== this.scope) continue
@@ -197,7 +225,7 @@ export class ReviewPanel implements vscode.Disposable {
       return false
     }
     if (result.status === 'changed') {
-      const message = m.vscode_note_changed({ path: card.path })
+      const message = m.workspace_note_changed({ path: card.path })
       this.log.warn(message)
       void vscode.window.showWarningMessage(message)
     }

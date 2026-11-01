@@ -41,23 +41,6 @@
       "preLaunchTask": "srmd: build vscode extension"
     },
     {
-      "name": "test: foam placeholders",
-      "type": "node",
-      "request": "launch",
-      "console": "integratedTerminal",
-      "internalConsoleOptions": "neverOpen",
-      "skipFiles": [
-        "<node_internals>/**",
-        "**/node_modules/**"
-      ],
-      "cwd": "${workspaceFolder}/extensions/micromark-foam-placeholders",
-      "runtimeArgs": [
-        "--import",
-        "tsx",
-        "--test"
-      ]
-    },
-    {
       "name": "test: l10n",
       "type": "node",
       "request": "launch",

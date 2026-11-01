@@ -1,5 +1,6 @@
+import type MarkdownIt from 'markdown-it'
 import { m } from '../../l10n/src'
-import { parse, persist_hints, serialize, type ParsedNote } from '../../parser/src'
+import { parse, persist_hints, serialize, shared_markdown_it, type ParsedNote } from '../../parser/src'
 import { NOTE, Scheduler, State, type Note, type ReviewRating } from '../../scheduler/src'
 import { note_from_parse, prepare_review, problem_text, type ReviewData } from '../../reviewer/src'
 import type { WorkspaceSettings } from './settings'
@@ -77,6 +78,11 @@ export async function each_limited<T>(items: T[], limit: number, task: (item: T)
  * reloads, review selection and saves each await file I/O; without the queue they would interleave there, applying an
  * older read last or saving a rating over a newer edit. Methods documented "Call within a task" must run inside one.
  *
+ * Notes load with srmd's own markdown-it instance, which reads their cards and scheduling. A card is shown and saved
+ * with the instance the host uses (use()), such as one composed of other plugins too, recording positions with
+ * srmd_plugin()'s `positions`; a note in which that instance finds other cards than loading did is reloaded from its
+ * parse before its card shows (see is_current()).
+ *
  * Problems of a note, such as a definition no cloze uses, are written to the log, and the host announces notes newly
  * having problems. Such notes are never written automatically: a save could remove what the problem names, so only
  * a review or an edit the user chose to make saves them. Resolved hints change only their own fields and are saved.
@@ -85,6 +91,8 @@ export class Workspace {
   /** Portable note/folder tree, queues and counts, which hosts present. */
   readonly state: State
   readonly scheduler: Scheduler
+  /** The instance cards are shown and saved with (see use()). */
+  private markdown: MarkdownIt
   /** End of the task chain: each task starts once the previous one has settled. */
   private tail: Promise<unknown> = Promise.resolve()
 
@@ -95,6 +103,7 @@ export class Workspace {
   ) {
     this.state = new State(settings.scheduler)
     this.scheduler = new Scheduler(this.state)
+    this.markdown = shared_markdown_it()
   }
 
   /**
@@ -108,6 +117,14 @@ export class Workspace {
     return result
   }
 
+  /**
+   * Show and save cards with md from now on: an instance recording positions, so that ratings can be saved. Notes
+   * still load with srmd's own instance. Call within a task, or before the first.
+   */
+  use(md: MarkdownIt): void {
+    this.markdown = md
+  }
+
   /** Use changed settings: scheduler options take effect at once; the host reloads the notes for other changes. */
   configure(settings: WorkspaceSettings): void {
     this.settings = settings
@@ -119,10 +136,16 @@ export class Workspace {
     return this.settings.suffixes.some(suffix => path.endsWith(suffix))
   }
 
-  /** Read and parse a note, with the optional extensions the settings turn on. */
+  /** Read and parse a note to load it, with srmd's own instance. */
   async read(path: string): Promise<ParsedNote> {
-    return parse(await this.storage.read(path), this.settings.extensions)
+    return parse(await this.storage.read(path))
   }
+
+  /**
+   * Make ready what rendering a parsed note reads synchronously, before its card renders, such as files a plugin of
+   * the instance embeds: nothing here. A host whose plugins need files read first overrides it.
+   */
+  protected async prepare(_path: string, _parsed: ParsedNote): Promise<void> {}
 
   /**
    * Read, parse and insert notes, as the workspace loads, with up to eight reads in flight; then persist resolved
@@ -138,7 +161,7 @@ export class Workspace {
     await each_limited(paths, 8, async path => {
       try {
         const text = this.storage.load ? await this.storage.load(path) : await this.storage.read(path)
-        const note = this.build(path, parse(text, this.settings.extensions), rewrites)
+        const note = this.build(path, parse(text), rewrites)
         this.scheduler.update([], [note])
         if (note.problems.length) problems++
       } catch (error: unknown) {
@@ -184,10 +207,16 @@ export class Workspace {
     if (node?.type === NOTE) node.version = text
   }
 
-  /** Whether the loaded note at path was built from this parse's text, so its cards match what the parse shows. */
+  /**
+   * Whether the loaded note at path was built from this parse's text and has its cards, by reference in ordinal order,
+   * so the parse can show and save them: cards with the same references in the same text have the same scheduling,
+   * whichever instance parsed them.
+   */
   is_current(path: string, parsed: ParsedNote): boolean {
     const node = this.state.nodes[path]
-    return node?.type === NOTE && node.version === parsed.source
+    const cards = parsed.scheduling
+    return node?.type === NOTE && node.version === parsed.source && node.cards.length === cards.length &&
+      node.cards.every((card, index) => card.ref === cards[index].ref)
   }
 
   /** Replace the loaded note at path with one built from parsed, read anew, then publish counts. Call within a task. */
@@ -208,26 +237,26 @@ export class Workspace {
     await this.events.refreshed()
   }
 
-  /** The loaded note at path, or every loaded note below the folder at path; none for other paths. */
-  notes_at(path: string): string[] {
-    const node = this.state.nodes[path]
-    if (!node) return []
-    return node.type === NOTE ? [path] : node.children.flatMap(child => this.notes_at(child))
-  }
-
   /**
-   * The next card of a note or folder path, read and prepared for display, or null when none is left. Call within a
-   * task.
+   * The next card of a note or folder path, read and prepared for display with the instance in use, or null when none
+   * is left. Call within a task.
    */
   async next_card(scope: string): Promise<PreparedCard | null> {
-    /* Pick a card and read its note; a note edited since it was loaded is reloaded first, and the pick repeats. */
+    /*
+     * Pick a card and read its note; a note edited since it was loaded, or whose cards the instance in use reads
+     * differently, is reloaded from this parse first, and the pick repeats.
+     */
     for (;;) {
       const [path, ordinal] = this.scheduler.next_card(scope)
       if (!path) return null
-      const parsed = await this.read(path)
-      if (this.is_current(path, parsed)) return { path, ordinal, parsed, data: prepare_review(this.scheduler, path, ordinal, parsed) }
-      // The host has not applied this edit yet. Cards from the older text could be shown and saved under the
-      // wrong clozes, so apply it now; the reloaded note may no longer have this card due.
+      const parsed = parse(await this.storage.read(path), this.markdown)
+      if (this.is_current(path, parsed)) {
+        await this.prepare(path, parsed)
+        const data = prepare_review(this.scheduler, path, ordinal, parsed, new Date())
+        return { path, ordinal, parsed, data }
+      }
+      // The host has not applied this edit yet, or another instance found other cards. Cards from the older parse could
+      // be shown and saved under the wrong clozes, so reload now; the note may no longer have this card due.
       await this.reload(path, parsed)
     }
   }
@@ -238,15 +267,15 @@ export class Workspace {
    */
   async rate(card: PreparedCard, rating: ReviewRating): Promise<RateResult> {
     /*
-     * 1. Read the note again. Text other than the shown note's means it was edited meanwhile: saving the shown
-     *    parse would overwrite that edit, and the rating may belong to a cloze that changed. Reload the note
-     *    from that text instead; the caller selects again.
+     * 1. Read the note again, parsed with the instance it was shown with. Text other than the shown note's means it was
+     *    edited meanwhile: saving the shown parse would overwrite that edit, and the rating may belong to a cloze that
+     *    changed. Reload the note from that text instead; the caller selects again.
      * 2. Rate a copy of the card and save the note with it. A failure leaves memory as it was, so the card stays due.
      * 3. Once saved, commit the card and publish the new counts before the next card is selected.
      */
     let current: ParsedNote
     try {
-      current = await this.read(card.path)
+      current = parse(await this.storage.read(card.path), card.parsed.md)
     } catch (error: unknown) {
       return { status: 'failed', error }
     }
@@ -277,7 +306,7 @@ export class Workspace {
     /* Compare the file with base, write the edit, then rebuild the note's cards from what was written. */
     if (base !== null && await this.storage.read(path) !== base) return 'changed'
     await this.save(path, text)
-    if (this.is_note(path)) await this.reload(path, parse(text, this.settings.extensions))
+    if (this.is_note(path)) await this.reload(path, parse(text))
     return 'saved'
   }
 
@@ -290,7 +319,7 @@ export class Workspace {
     const { note, scheduling_changed } = note_from_parse(this.scheduler, path, parsed)
     for (const problem of note.problems) this.log.warn(`${path}: ${problem_text(problem)}`)
     // Only actual scheduling changes, resolved hints, are persisted, and nothing else is normalized.
-    if (scheduling_changed) rewrites.push({ path, text: persist_hints(parsed.source, parsed.hints, note.cards) })
+    if (scheduling_changed) rewrites.push({ path, text: persist_hints(parsed, note.cards) })
     return note
   }
 

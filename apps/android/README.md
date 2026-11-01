@@ -26,8 +26,11 @@ images and PDFs, open in the app that handles them on your device.
 - **Search all files** at the bottom of the drawer: the tree shows only the files whose name or text matches, with the
   number of matches in their text.
 - **Swipe up** from the strip at the bottom of the screen, or tap it, to search the shown file. The arrows move between
-  the matches.
+  the matches. In the editor, the same opens the editor's search, which can also replace.
 - **Links** open the file they point to over the current one, and Back returns. Web links open in your browser.
+  [Foam](https://foambubble.github.io/foam/)'s wiki links (`[[note]]`) show the title of the note they point to and
+  open it the same way, and embeds (`![[note]]`, `![[diagram.png]]`) show the note or image in place, its clozes
+  outlined but never part of a card. Block anchors (`^id`) are hidden.
 
 ## Reviewing
 
@@ -43,13 +46,6 @@ elsewhere is lost; the app says so and goes on with the note as it is now.
 The Markdown symbol in the drawer's bottom bar switches the shown file to the editor; the eye switches back. Leaving the
 editor with changes, by the eye, Back or opening another file, asks whether to **Save**, **Discard** them or **Keep
 editing**. If the file changed since you started editing, the app does not save over it unless you say so.
-
-**Format**, beside the Markdown symbol, tidies the layout of the Markdown file you edit, as Format Document does in VS
-Code: one blank line between blocks, list content indented to its marker (`- item`, `1.  item`), aligned tables; the
-formatting settings choose bullets, numbering, table delimiters, emphasis and whether paragraphs wrap. What you wrote
-inside paragraphs, headings and table cells stays as it is, clozes, references and wiki links included. Undo takes it
-back; with a keyboard, Shift+Alt+F formats too. Formatting never changes what a note shows or its cards: should it ever,
-the text stays as it is and the app says so.
 
 If Android closes the app in the background while you edit, your changes come back unsaved in the editor the next time
 you open it.
@@ -73,15 +69,8 @@ The cogwheel in the drawer's bottom bar opens the settings:
 | The review day starts at                   | 04:00                                                           |
 | Order of cards                             | Again today, due, new                                           |
 | Show the note's other clozes on each face  | Off                                                             |
-| Markdown extension: foam-placeholders      | Off: Foam's wiki links and block anchors show as written        |
-| Lines of paragraphs                        | As written; or wrapped at the line width, or one per paragraph  |
-| Line width                                 | 80 characters, list markers and quote prefixes included         |
-| Numbered lists                             | Counting up: 1. 2. 3.; or the first number repeated             |
-| Bullet                                     | `-`; or `*` or `+`                                              |
-| Table delimiter rows                       | Without spaces around their dashes; or with them                |
-| Emphasis (italics), strong emphasis (bold) | As written; or asterisks or underscores, where they work        |
 
-The review and formatting settings are those of the VS Code extension, so both apps schedule and format alike. The log
+The review settings are those of the VS Code extension, so both apps schedule alike. The log
 at the bottom lists notes the app could not read, failed saves and dropped ratings.
 
 ## Keeping up with the folder

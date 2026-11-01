@@ -11,7 +11,7 @@ const storage: Storage = { read: read_file, write: write_file }
 /** Say that count notes newly have problems, offering the log that lists them; nothing for none. */
 function notify(log: vscode.LogOutputChannel, count: number): void {
   if (!count) return
-  void vscode.window.showWarningMessage(m.vscode_problems_found({ count }), m.vscode_show_log()).then(choice => {
+  void vscode.window.showWarningMessage(m.workspace_problems_found({ count }), m.vscode_show_log()).then(choice => {
     if (choice) log.show()
   })
 }
@@ -31,7 +31,10 @@ function notify(log: vscode.LogOutputChannel, count: number): void {
 export class Workspace extends NoteWorkspace implements vscode.Disposable {
   /** The settings last applied, including whether srmd is on. */
   protected declare settings: Settings
-  /** Content changes of notes, and creations/deletions of any path: VS Code reports a moved or deleted folder only as the folder. */
+  /**
+   * Content changes of notes, and creations/deletions of any path: VS Code reports a moved or deleted folder only as the
+   * folder.
+   */
   private watchers: vscode.FileSystemWatcher[] = []
   /** Paths reported by the watcher since its last batch; a short debounce groups bursts into one task. */
   private changed = new Set<string>()
@@ -53,13 +56,18 @@ export class Workspace extends NoteWorkspace implements vscode.Disposable {
   }
 
   /**
-   * Apply changed settings, as a task: scheduler options take effect and the folder reloads with the suffixes,
-   * or is loaded or unloaded when srmd was turned on or off.
+   * Apply changed settings, as a task. The folder loads again only when what decides the notes changed: srmd turned on
+   * or off, the first workspace folder, or the suffixes. Otherwise the scheduler options take effect on the notes
+   * loaded, every note's queues rebuilt, as a rollover moves the review days.
    */
   reconfigure(settings: Settings): Promise<void> {
     return this.run(async () => {
+      const suffixes = JSON.stringify(this.settings.suffixes)
       this.configure(settings)
-      await this.load_folder()
+      const folder = this.folder()
+      if ((folder?.path ?? null) !== this.state.root || JSON.stringify(settings.suffixes) !== suffixes) return this.load_folder(folder)
+      this.state.last_recount = null
+      await this.refresh()
     })
   }
 
@@ -86,8 +94,16 @@ export class Workspace extends NoteWorkspace implements vscode.Disposable {
     return `**/*{${this.settings.suffixes.join(',')}}`
   }
 
-  /** Replace the loaded notes with those of the current first workspace folder, or with none while off. Runs as a task. */
-  private async load_folder(): Promise<void> {
+  /** The folder srmd loads: the first workspace folder, saying so when there are more; none while srmd is off. */
+  private folder(): vscode.Uri | undefined {
+    const folders = this.settings.enabled ? vscode.workspace.workspaceFolders ?? [] : []
+    // Multi-root workspaces are not supported; say which folder is used.
+    if (folders.length > 1) this.channel.info(m.vscode_first_folder_only({ name: folders[0].name }))
+    return folders[0]?.uri
+  }
+
+  /** Replace the loaded notes with those of folder, or with none without one. Runs as a task. */
+  private async load_folder(folder = this.folder()): Promise<void> {
     /*
      * 1. Stop the previous folder's watcher and timer, and reset the state to the new root. While srmd is
      *    off, or no folder is open, the state stays empty and its publication clears the views and badges.
@@ -99,10 +115,6 @@ export class Workspace extends NoteWorkspace implements vscode.Disposable {
     if (this.disposed) return
     this.unwatch()
     this.stop_timer()
-    const folders = this.settings.enabled ? vscode.workspace.workspaceFolders ?? [] : []
-    // Multi-root workspaces are not supported; say which folder is used.
-    if (folders.length > 1) this.channel.info(m.vscode_first_folder_only({ name: folders[0].name }))
-    const folder = folders[0]?.uri
     this.scheduler.load(folder ? folder.path : null)
     if (!folder) {
       await this.refresh()
@@ -115,9 +127,16 @@ export class Workspace extends NoteWorkspace implements vscode.Disposable {
     this.watch(folder)
     /** Loaded notes that have problems, announced once the counts are published. */
     let problems = 0
-    await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: m.vscode_loading(), cancellable: false }, async () => {
-      problems = await this.add(await find_files(folder, this.pattern))
-    })
+    try {
+      await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title: m.vscode_loading(), cancellable: false }, async () => {
+        problems = await this.add(await find_files(folder, this.pattern))
+      })
+    } catch (error: unknown) {
+      // The folder could not be listed: it shows no notes, and the watcher loads those that change.
+      const message = m.vscode_load_failed({ detail: error_text(error) })
+      this.channel.error(message)
+      void vscode.window.showErrorMessage(message)
+    }
     await this.refresh()
     notify(this.channel, problems)
     this.start_timer()
@@ -180,13 +199,13 @@ export class Workspace extends NoteWorkspace implements vscode.Disposable {
       try {
         const stat = await stat_path(path)
         const node = this.state.nodes[path]
-        if (!stat) remove.push(...this.notes_at(path))
+        if (!stat) remove.push(...this.scheduler.notes_at(path))
         else if (stat.folder) {
           const found = new Set(await find_files(str_to_uri(path), this.pattern))
-          remove.push(...this.notes_at(path).filter(note => !found.has(note)))
+          remove.push(...this.scheduler.notes_at(path).filter(note => !found.has(note)))
           for (const note of found) load.add(note)
         } else {
-          if (node?.type === FOLDER) remove.push(...this.notes_at(path))
+          if (node?.type === FOLDER) remove.push(...this.scheduler.notes_at(path))
           if (this.is_note(path) && (node?.type !== NOTE || stat.mtime !== written)) load.add(path)
         }
       } catch (error: unknown) {

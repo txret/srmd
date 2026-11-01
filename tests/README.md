@@ -3,19 +3,18 @@
 Install dependencies once with `npm install` at the repository root. Use Node
 20.19 or later. Then run `npm test` in the directory you are working on:
 
-| Directory            | What runs                                                                      |
-|----------------------|--------------------------------------------------------------------------------|
-| Repository root      | The optional extensions, all shared components, then VS Code and Android       |
-| `extensions/<name>/` | One optional micromark extension, with plain micromark                         |
-| `shared/`            | Parser, scheduler, reviewer, UI, workspace and messages                        |
-| `shared/scheduler/`  | Manual hints, FSRS, review days, queues and folder counts                      |
-| `shared/reviewer/`   | Review preparation and load/review/save round trips                            |
-| `shared/parser/`     | Clozes, references, definitions, saving, transcription and the parser API      |
-| `shared/ui/`         | Shared UI tests                                                                |
-| `shared/l10n/`       | Catalog parity, language matching and message output (compiles messages first) |
-| `shared/workspace/`  | Loading, reviewing and saving over in-memory files; settings; the file tree    |
-| `apps/vscode/`       | The extension in a mocked VS Code: review, scopes, views, workspace, preview   |
-| `apps/android/`      | The web app's parts in Node, and the built app in headless Chromium            |
+| Directory           | What runs                                                                                |
+|---------------------|------------------------------------------------------------------------------------------|
+| Repository root     | All shared components, then VS Code and Android                                          |
+| `shared/`           | Parser, scheduler, reviewer, UI, workspace and messages                                  |
+| `shared/scheduler/` | Manual hints, FSRS, review days, queues and folder counts                                |
+| `shared/reviewer/`  | Review preparation and load/review/save round trips                                      |
+| `shared/parser/`    | Clozes, references, definitions, saving and the API                                      |
+| `shared/ui/`        | Shared UI tests                                                                          |
+| `shared/l10n/`      | Catalog parity, language matching and message output (compiles messages first)           |
+| `shared/workspace/` | Loading, reviewing and saving over in-memory files; settings; tree                       |
+| `apps/vscode/`      | The extension in a mocked VS Code: review, its markdown-it, scopes, views, preview, more |
+| `apps/android/`     | The web app's parts in Node, and the built app in headless Chromium                      |
 
 The parent commands delegate through npm workspaces. Each component uses Node's
 built-in test discovery and assertions; there is no custom test runner. Shared
@@ -41,7 +40,7 @@ import * as tests from './clozes.test.mjs'
 
 /** An implicit inline cloze runs to the end of its paragraph. */
 export function test_implicit_inline_cloze_runs_to_its_paragraph_end() {
-  assert.equal(render(parse('Q:: answer\nnext').events), `
+  assert.equal(render(parse('Q:: answer\nnext')), `
 <p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">answer
 next</span></p>`.slice(1))
 }
@@ -57,7 +56,7 @@ Compare complete results with `assert.equal` or `assert.deepEqual`: full HTML
 (including scheduling attributes), saved Markdown, card records and review choices.
 Keep expected values literal; do not strip attributes, match only a substring, or
 calculate an expected result using the implementation under test. Structural checks
-such as balanced token identities supplement the complete output comparisons.
+such as balanced opening and closing tokens supplement the complete output comparisons.
 
 Write text examples as left-aligned template literals with the opening backtick
 on its own line. `.slice(1)` removes only that formatting newline, leaving all
@@ -68,7 +67,7 @@ const source = `
 Q:: answer`.slice(1)
 const expected = `
 <p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">answer</span></p>`.slice(1)
-assert.equal(render(parse(source).events), expected)
+assert.equal(render(parse(source)), expected)
 ```
 
 Keep significant invisible characters explicit: `\x20` for trailing spaces,
@@ -110,8 +109,11 @@ tests exercise the bundles that ship. Those outputs are ignored by Git. Each
 webview document executes the app's reviewer bundle with small DOM and VS Code
 adapters, and the mock delivers the host's card messages to it asynchronously. Button and keyboard input therefore pass
 through the shared controls and the VS Code message bridge before reaching the
-host's save loop. Browser layout is not simulated. The host tests require neither
-an installed extension nor a running VS Code instance.
+host's save loop. Browser layout is not simulated. Other installed extensions that
+contribute markdown-it plugins, which reviews compose, are described with
+`markdown_extension()`: an id and a plugin, which the mock activates and records.
+The host tests require neither an installed extension nor a running VS Code
+instance.
 
 The Android tests in [apps/android/tests/](../apps/android/tests/) test the web
 app's modules that need no browser in Node, against fakes of the shell and the
@@ -125,18 +127,5 @@ a Chromium they are skipped: [browser.mjs](../apps/android/tests/browser.mjs) fi
 one through `CHROME`, Playwright's download or the `PATH`. The shell's Kotlin unit
 tests run with Gradle, `npm run test:native` in `apps/android/`, which needs a JDK.
 
-The parser inspector is [inspection.mjs](../shared/parser/tests/inspection.mjs):
-
-```sh
-# From the repository root:
-npm run parse -- --serialize shared/parser/tests/examples/reordered.sr.md
-
-# From shared/parser:
-npm run inspect -- --serialize tests/examples/reordered.sr.md
-```
-
-The inspector reads source without modifying files. `--source` prints serialized
-Markdown, `--html` prints rendered HTML, and `--json` reports parser details.
-
-The parser inspector preserves manual hints as written. Hint resolution is tested
-in the scheduler component, where review time and tie breaking can be supplied explicitly.
+The parser's note inspector, which the parser's tests do not need, is described in
+[shared/parser/README.md](../shared/parser/README.md).

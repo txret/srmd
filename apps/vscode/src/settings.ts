@@ -22,17 +22,6 @@ export function read_settings(log: vscode.LogOutputChannel): Settings {
   return { enabled: enabled === true, ...read_workspace_settings(name => cfg.get<unknown>(name), invalid) }
 }
 
-/** The settings other than the formatting settings, by name without the `srmd.` prefix: changing them reloads the notes. */
-const loaded_settings = ['enabled', 'rollover', 'inactive', 'queueOrder', 'suffixes', 'extensions']
-
-/**
- * Whether a configuration change touches only the formatting settings, `srmd.format.*`, which apply at the next format
- * and change nothing loaded or shown.
- */
-export function formatting_only(event: vscode.ConfigurationChangeEvent): boolean {
-  return event.affectsConfiguration('srmd.format') && !loaded_settings.some(name => event.affectsConfiguration(`srmd.${name}`))
-}
-
 /**
  * Turn srmd on or off for the open workspace by writing its workspace setting; the configuration change
  * that follows applies it. A workspace setting overrides the user setting in both directions.

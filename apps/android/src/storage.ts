@@ -24,11 +24,10 @@ export class AndroidStorage implements Storage {
 
   /** Use a scan's files to judge cached texts; texts of files gone from the folder are forgotten. */
   set_entries(entries: FileEntry[]): void {
-    /* Index the new entries, then drop the texts of paths no longer listed. */
-    const previous = this.entries
+    /* Index the new entries, then drop the kept texts of paths not listed, also of files gone since an earlier session. */
     this.entries = Object.create(null)
     for (const entry of entries) this.entries[entry.path] = entry
-    for (const path in previous) if (!(path in this.entries)) this.cache.delete(path)
+    for (const path of this.cache.paths()) if (!(path in this.entries)) this.cache.delete(path)
   }
 
   /** The last scan's entry for path, if it listed one. */

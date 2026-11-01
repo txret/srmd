@@ -86,108 +86,6 @@
             ".sr.md"
           ],
           "description": "%config.suffixes%"
-        },
-        "srmd.extensions": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": [
-              "foam-placeholders"
-            ],
-            "enumDescriptions": [
-              "%config.extensions.foamPlaceholders%"
-            ]
-          },
-          "uniqueItems": true,
-          "default": [],
-          "description": "%config.extensions%"
-        },
-        "srmd.format.wrap": {
-          "type": "string",
-          "enum": [
-            "preserve",
-            "always",
-            "never"
-          ],
-          "enumDescriptions": [
-            "%config.format.wrap.preserve%",
-            "%config.format.wrap.always%",
-            "%config.format.wrap.never%"
-          ],
-          "default": "preserve",
-          "description": "%config.format.wrap%"
-        },
-        "srmd.format.lineWidth": {
-          "type": "integer",
-          "minimum": 20,
-          "default": 80,
-          "description": "%config.format.lineWidth%"
-        },
-        "srmd.format.numbering": {
-          "type": "string",
-          "enum": [
-            "increment",
-            "repeat"
-          ],
-          "enumDescriptions": [
-            "%config.format.numbering.increment%",
-            "%config.format.numbering.repeat%"
-          ],
-          "default": "increment",
-          "description": "%config.format.numbering%"
-        },
-        "srmd.format.bullet": {
-          "type": "string",
-          "enum": [
-            "-",
-            "*",
-            "+"
-          ],
-          "default": "-",
-          "description": "%config.format.bullet%"
-        },
-        "srmd.format.tableDelimiters": {
-          "type": "string",
-          "enum": [
-            "compact",
-            "padded"
-          ],
-          "enumDescriptions": [
-            "%config.format.tableDelimiters.compact%",
-            "%config.format.tableDelimiters.padded%"
-          ],
-          "default": "compact",
-          "description": "%config.format.tableDelimiters%"
-        },
-        "srmd.format.emphasis": {
-          "type": "string",
-          "enum": [
-            "preserve",
-            "asterisk",
-            "underscore"
-          ],
-          "enumDescriptions": [
-            "%config.format.emphasis.preserve%",
-            "%config.format.emphasis.asterisk%",
-            "%config.format.emphasis.underscore%"
-          ],
-          "default": "preserve",
-          "description": "%config.format.emphasis%"
-        },
-        "srmd.format.strong": {
-          "type": "string",
-          "enum": [
-            "preserve",
-            "asterisk",
-            "underscore"
-          ],
-          "enumDescriptions": [
-            "%config.format.strong.preserve%",
-            "%config.format.strong.asterisk%",
-            "%config.format.strong.underscore%"
-          ],
-          "default": "preserve",
-          "description": "%config.format.strong%"
         }
       }
     },
@@ -357,14 +255,14 @@
     "@srmd/reviewer": "*",
     "@srmd/scheduler": "*",
     "@srmd/ui": "*",
-    "@srmd/workspace": "*"
+    "@srmd/workspace": "*",
+    "markdown-it": ">=14.3.2"
   },
   "devDependencies": {
     "@rollup/plugin-commonjs": ">=29.0.3",
     "@rollup/plugin-node-resolve": ">=16.0.3",
     "@types/vscode": "1.85.0",
     "@vscode/vsce": ">=4.0.0",
-    "markdown-it": ">=14.3.2",
     "rollup": ">=4.64.8",
     "rollup-plugin-esbuild": ">=6.2.1",
     "typescript": ">=7.0.2"

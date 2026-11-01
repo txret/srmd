@@ -1,51 +1,26 @@
-/** The search bar of the shown file, swiped up from the bottom: matches highlighted, counted and stepped through. */
+/**
+ * The search bar of the file shown in view mode, swiped up from the bottom: matches highlighted, counted and stepped
+ * through, with the shared Search's highlight boxes over the rendered file. The Search's own field and button go into a
+ * detached element; the bar drives it. Edit mode searches with CodeMirror's own panel instead (editor.ts).
+ */
 import { m } from '@srmd/l10n'
 import { Search } from '@srmd/ui'
 import { icons } from './icons'
 
-/** What the bar searches: the shown file's rendered text in view mode, its source in edit mode. */
-export interface SearchTarget {
-  /**
-   * Highlight every match of query, ignoring case, and make the next or previous one current, revealing it: from the
-   * start when the query changed. Returns the current match's index and the number of matches.
-   */
-  find(query: string, backward: boolean): { index: number; total: number }
-  /** Remove the highlights and stop following the content's layout. */
-  clear(): void
-}
-
-/**
- * The view mode target: the shared Search's highlight boxes over the rendered file in content, which must be the
- * scroll container. The Search's own field and button go into a detached element; the bar drives it.
- */
-export function view_target(content: HTMLElement): SearchTarget {
-  const search = new Search(document.createElement('div'), content, { placeholder: '', button_lbl: '' })
-  return {
-    /** Search the rendered text through the Search's field: the next match, or the previous one backward. */
-    find(query, backward) {
-      search.field.value = query
-      search.run_search(backward)
-      return { index: search.index, total: search.highlights.length }
-    },
-    /** Remove the boxes and stop following the content's layout. */
-    clear() {
-      search.clear()
-      search.dispose()
-    }
-  }
-}
-
 /** The bar: a field, the match count, previous and next, and close. Typing searches after a short pause. */
 export class NoteSearch {
-  /** What the open bar searches; null while it is closed. */
-  private target: SearchTarget | null = null
+  /** The search of the rendered file while the bar is open; null while it is closed. */
+  private search: Search | null = null
   private readonly input: HTMLInputElement
   private readonly count: HTMLElement
   /** The pending search after typing, or 0. */
   private timer = 0
 
-  /** Build the bar in element; on_close runs when its close button is tapped, so the app can close it as Back does. */
-  constructor(readonly element: HTMLElement, on_close: () => void) {
+  /**
+   * Build the bar in element, for the rendered file in content, which must be the scroll container; on_close runs when
+   * its close button is tapped, so the app can close it as Back does.
+   */
+  constructor(readonly element: HTMLElement, private readonly content: HTMLElement, on_close: () => void) {
     /* Create the controls, then connect typing, Enter and the buttons. */
     element.innerHTML = `<input type="search" enterkeyhint="search" autocomplete="off" placeholder="${m.android_search_note()}" aria-label="${m.android_search_note()}">` +
       '<span class="count" aria-live="polite"></span>' +
@@ -69,15 +44,10 @@ export class NoteSearch {
     element.querySelector('.close')!.addEventListener('click', on_close)
   }
 
-  /** Whether the bar is open. */
-  get open(): boolean {
-    return this.target !== null
-  }
-
-  /** Open the bar on target with query, searching it at once, or with an empty field focused for typing. */
-  show(target: SearchTarget, query = ''): void {
-    this.target?.clear()
-    this.target = target
+  /** Open the bar with query, searching it at once, or with an empty field focused for typing. */
+  show(query = ''): void {
+    this.hide()
+    this.search = new Search(document.createElement('div'), this.content, { placeholder: '', button_lbl: '' })
     this.element.hidden = false
     this.input.value = query
     this.count.textContent = ''
@@ -85,20 +55,23 @@ export class NoteSearch {
     else this.input.focus()
   }
 
-  /** Close the bar and its highlights. */
+  /** Close the bar, removing its highlights and no longer following the file's layout. */
   hide(): void {
     clearTimeout(this.timer)
-    this.target?.clear()
-    this.target = null
+    this.search?.clear()
+    this.search?.dispose()
+    this.search = null
     this.element.hidden = true
     this.input.blur()
   }
 
   /** Search the field's text: the next match, or the previous one backward; show which of how many it is. */
   private find(backward: boolean): void {
-    if (!this.target) return
+    if (!this.search) return
     const query = this.input.value
-    const { index, total } = this.target.find(query, backward)
-    this.count.textContent = !query ? '' : total ? `${index + 1}/${total}` : m.android_no_matches()
+    this.search.field.value = query
+    this.search.run_search(backward)
+    const total = this.search.highlights.length
+    this.count.textContent = !query ? '' : total ? `${this.search.index + 1}/${total}` : m.android_no_matches()
   }
 }

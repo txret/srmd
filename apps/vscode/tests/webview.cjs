@@ -10,11 +10,19 @@ function element(classes = '', dataset = {}, tag = 'div', parent = null) {
     dataset,
     tagName: tag.toUpperCase(),
     isConnected: true,
-    /** Match a tag name or a single class selector on this element or its ancestors; other selectors match nothing. */
+    /**
+     * Match a tag name, a single class selector or a tag with a class, or a list of these separated by commas, on this
+     * element or its ancestors; other selectors match nothing.
+     */
     closest(selector) {
+      const parts = selector.split(',').map(part => part.trim())
       for (let node = this; node; node = node.parent) {
-        if (selector === node.tag) return node
-        if (selector.startsWith('.') && !selector.includes(' ') && node.classList.contains(selector.slice(1))) return node
+        for (const part of parts) {
+          if (part === node.tag) return node
+          if (part.startsWith('.') && !part.includes(' ') && !part.slice(1).includes('.') && node.classList.contains(part.slice(1))) return node
+          const [tag, name, more] = part.split('.')
+          if (tag && name && more === undefined && tag === node.tag && node.classList.contains(name)) return node
+        }
       }
       return null
     },
@@ -50,6 +58,9 @@ function card_view(markup) {
   const details = new Map(choices.map(choice => [choice.dataset.id, element('detail', {}, 'span', choice)]))
   const content = Object.assign(element(), { querySelectorAll: () => clozes, children: [] })
   const search = Object.assign(element(), { querySelector: () => element() })
+  /** Foam's links in the note, with the workspace path a resolved one points at. */
+  const links = [...markup.matchAll(/<a class="(foam-note-link|foam-placeholder-link)"[^>]*?(?: data-href="([^"]*)")?>/g)]
+    .map(([, name, href]) => element(name, href === undefined ? {} : { href }, 'a'))
   const flip = element('flip-btn', {}, 'button')
   root.querySelector = selector => {
     /* Supply only the selectors the shared reviewer uses during setup and rating. */
@@ -75,6 +86,13 @@ function card_view(markup) {
       const click = new Event('click')
       Object.defineProperty(click, 'target', { value: choice })
       root.dispatchEvent(click)
+    },
+    /** Click the note's link at index, returning whether the reviewer kept the webview from following it. */
+    click_link(index) {
+      const click = new Event('click', { cancelable: true })
+      Object.defineProperty(click, 'target', { value: links[index] })
+      root.dispatchEvent(click)
+      return click.defaultPrevented
     },
     /** Click the interval text inside a choice's button. */
     click_detail(choice_id) {

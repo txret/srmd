@@ -21,7 +21,7 @@ export function row_html(row: TreeRow, selected: boolean): string {
   const classes = ['row', row.kind, row.expanded ? 'expanded' : '', selected ? 'selected' : ''].filter(Boolean).join(' ')
   const twist = folder ? `<span class="twist">${icons.chevron}</span>` : '<span class="twist"></span>'
   const warning = row.problems ? '⚠ ' : ''
-  const counts = row.counts ? `<span class="counts">${escape_html(warning + m.android_counts(row.counts))}</span>` : ''
+  const counts = row.counts ? `<span class="counts">${escape_html(warning + m.workspace_counts(row.counts))}</span>` : ''
   const matches = row.matches ? `<span class="matches">${row.matches}</span>` : ''
   const due = row.counts ? row.counts.due + row.counts.new : 0
   const review = due ? `<button type="button" class="review" aria-label="${escape_html(m.android_review_scope({ name: row.name }))}">${icons.play}</button>` : ''

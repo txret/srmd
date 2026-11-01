@@ -34,8 +34,8 @@ export function test_invalid_definitions_are_text() {
   assert.equal(card_with('[:1]: k 0 0 0 0 0 1.5'), not_a_definition)
   assert.equal(card_with('[:1]: k 0 0 0 0 0 0 0 0 0'), not_a_definition)
   assert.equal(card_with('[:1]:'), not_a_definition)
-  assert.equal(render(parse('[:8]: nope 0 0 0 0 0 0 0 0').events), '<p>[:8]: nope 0 0 0 0 0 0 0 0</p>')
-  assert.equal(render(parse('[:8]: n 0 0 0 0 0 0 0 0 99').events), '<p>[:8]: n 0 0 0 0 0 0 0 0 99</p>')
+  assert.equal(render(parse('[:8]: nope 0 0 0 0 0 0 0 0')), '<p>[:8]: nope 0 0 0 0 0 0 0 0</p>')
+  assert.equal(render(parse('[:8]: n 0 0 0 0 0 0 0 0 99')), '<p>[:8]: n 0 0 0 0 0 0 0 0 99</p>')
 }
 
 /**
@@ -54,7 +54,7 @@ Q:: answer[:8]`.slice(1))
 Q:: answer[:1]`.slice(1))
 
   const code = parse('    [:8]: n 0 0 0 0 0 0 0 0')
-  assert.equal(render(code.events), `
+  assert.equal(render(code), `
 <pre><code>[:8]: n 0 0 0 0 0 0 0 0
 </code></pre>`.slice(1))
   assert.deepEqual(code.definitions, [])
@@ -64,7 +64,7 @@ Q:: answer[:1]`.slice(1))
 >
 > Q:: answer[:8]`.slice(1))
   assert.equal(card_lines(quoted), '[:8]: l 0 0 0 0 0 0 1 0')
-  assert.equal(render(quoted.events), `
+  assert.equal(render(quoted), `
 <blockquote>
 <p>Q: <span class="cloze" data-ordinal="1" data-card="[:8]: l 0 0 0 0 0 0 1 0">answer</span></p>
 </blockquote>`.slice(1))
@@ -79,7 +79,7 @@ Q:: answer[:1]`.slice(1))
 
 Q:: [answer][site][:8]`.slice(1))
   assert.equal(card_lines(with_links), '[:8]: l 0 0 0 0 0 0 1 0')
-  assert.equal(render(with_links.events),
+  assert.equal(render(with_links),
     '<p>Q: <span class="cloze" data-ordinal="1" data-card="[:8]: l 0 0 0 0 0 0 1 0"><a href="https://example.com">answer</a></span></p>')
   assert.equal(serialize(with_links, with_links.scheduling), `
 [site]: https://example.com
@@ -95,7 +95,7 @@ Q:: [answer][site][:1]`.slice(1))
 export function test_a_definition_is_one_line_and_cannot_interrupt_a_paragraph() {
   assert.equal(render(parse(`
 Text
-[:8]: n 0 0 0 0 0 0 0 0`.slice(1)).events), `
+[:8]: n 0 0 0 0 0 0 0 0`.slice(1))), `
 <p>Text
 [:8]: n 0 0 0 0 0 0 0 0</p>`.slice(1))
 
@@ -106,7 +106,7 @@ Q:: answer[:7]
 0 0 0 0 0
 Text`.slice(1))
   assert.equal(card_lines(wrapped), '[:7]: n 0 0 0 0 0 0 0 0')
-  assert.equal(render(wrapped.events), `
+  assert.equal(render(wrapped), `
 <p>Q: <span class="cloze" data-ordinal="1" data-card="[:7]: n 0 0 0 0 0 0 0 0">answer</span></p>
 <p>0 0 0 0 0
 Text</p>`.slice(1))
@@ -114,7 +114,7 @@ Text</p>`.slice(1))
   assert.equal(render(parse(`
 [:8]: n 0 0 0
 
-0 0 0 0 0`.slice(1)).events), '<p>0 0 0 0 0</p>')
+0 0 0 0 0`.slice(1))), '<p>0 0 0 0 0</p>')
 }
 
 /**
@@ -179,9 +179,8 @@ Q:: answer[:1]
 [:1]: k  20261012040000 7 20261005120000 8.50  4.20 0 10 1
 `.slice(1)
   const parsed = parse(source)
-  assert.equal(render(parsed.events), `
-<p>Q: <span class="cloze" data-ordinal="1" data-card="[:1]: k 20261012040000 7 20261005120000 8.5 4.2 0 10 1">answer</span></p>
-`.slice(1))
+  assert.equal(render(parsed), `
+<p>Q: <span class="cloze" data-ordinal="1" data-card="[:1]: k 20261012040000 7 20261005120000 8.5 4.2 0 10 1">answer</span></p>`.slice(1))
   assert.equal(parsed.source, source)
 }
 
@@ -215,12 +214,11 @@ D:: d[:4]
 [:2]: 7d 20000101040000 99 19991225120000 12.5 5.1 3 10 2
 [:3]: 2w 20000101040000 99 19991225120000 12.5 5.1 3 10 2
 [:4]: 1m 20000101040000 99 19991225120000 12.5 5.1 3 10 2`.slice(1))
-  assert.equal(render(parsed.events), `
+  assert.equal(render(parsed), `
 <p>A: <span class="cloze" data-ordinal="1" data-card="[:1]: ! 20000101040000 99 19991225120000 12.5 5.1 3 10 2">a</span></p>
 <p>B: <span class="cloze" data-ordinal="2" data-card="[:2]: 7d 20000101040000 99 19991225120000 12.5 5.1 3 10 2">b</span></p>
 <p>C: <span class="cloze" data-ordinal="3" data-card="[:3]: 2w 20000101040000 99 19991225120000 12.5 5.1 3 10 2">c</span></p>
-<p>D: <span class="cloze" data-ordinal="4" data-card="[:4]: 1m 20000101040000 99 19991225120000 12.5 5.1 3 10 2">d</span></p>
-`.slice(1))
+<p>D: <span class="cloze" data-ordinal="4" data-card="[:4]: 1m 20000101040000 99 19991225120000 12.5 5.1 3 10 2">d</span></p>`.slice(1))
   assert.equal(serialize(parsed, parsed.scheduling), source)
 }
 

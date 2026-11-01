@@ -10,7 +10,6 @@ export const icons = {
   /** Edit mode: the Markdown mark, M and a down arrow in a frame. */
   markdown: icon('<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 15V9l3 3 3-3v6M17 9v6m-2.5-2.5L17 15l2.5-2.5"/>'),
   /** Format: lines of text, the inner ones indented. */
-  format: icon('<path d="M4 6h16M9 10h11M9 14h11M4 18h16"/>'),
   /** Review: a play triangle. */
   play: icon('<path d="M8 5.5v13l10.5-6.5z"/>', true),
   /** Settings: a toothed wheel. */

@@ -9,9 +9,8 @@
     "typecheck": "npm run typecheck --workspace @srmd/l10n --workspace @srmd/parser --workspace @srmd/scheduler --workspace @srmd/reviewer --workspace @srmd/ui --workspace @srmd/workspace"
   },
   "devDependencies": {
-    "@types/mdast": ">=4.0.4",
+    "@types/markdown-it": ">=14.2.0",
     "@types/node": ">=26.6.5",
-    "micromark-util-types": ">=2.0.3",
     "typescript": ">=7.0.2"
   },
   "type": "module",

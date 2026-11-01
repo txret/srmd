@@ -53,7 +53,9 @@ export function problem_text(problem: NoteProblem): string {
  * The caller retains the same parse for serialize() after applying a review.
  * path and ordinal identify a loaded note and a one-based card. Texts use the language selected with set_language().
  */
-export function prepare_review(scheduler: Scheduler, path: string, ordinal: number, parsed: ParsedNote, now: Date = new Date()): ReviewData {
+export function prepare_review(
+  scheduler: Scheduler, path: string, ordinal: number, parsed: ParsedNote, now: Date = new Date()
+): ReviewData {
   /* Render using live card records, then combine FSRS previews and fixed-interval choices as translated plain text. */
   const note = scheduler.state.nodes[path] as Note
   const future = scheduler.peek(path, ordinal, now)
@@ -62,7 +64,7 @@ export function prepare_review(scheduler: Scheduler, path: string, ordinal: numb
   return {
     path,
     title: path || m.reviewer_untitled(),
-    html: render(parsed.events, { extensions: parsed.extensions, scheduling: note.cards }),
+    html: render(parsed, { scheduling: note.cards }),
     card_ordinal: ordinal,
     choices: [
       { id: 'again', label: m.reviewer_again(), detail: interval(future.again) },

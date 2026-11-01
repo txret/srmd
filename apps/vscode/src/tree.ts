@@ -66,7 +66,7 @@ export class NoteTree implements vscode.TreeDataProvider<Note | Folder>, vscode.
     // Abbreviate the inline counts to keep rows narrow; the tooltip spells them out below the default path.
     // A warning sign marks a note with problems, or a folder containing one; the tooltip lists them.
     const problems = is_note ? node.problems.length : node.problems
-    item.description = (problems ? '⚠ ' : '') + m.vscode_counts_short(counts)
+    item.description = (problems ? '⚠ ' : '') + m.workspace_counts(counts)
     // No row tooltip: rows carry their resource URI, so VS Code applies the Explorer's file decoration to them too,
     // including its tooltip with the full counts (see ExplorerProvider).
     // The manifest's row buttons and menu items select on this: Review for every row, Edit for notes only.

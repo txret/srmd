@@ -1,5 +1,6 @@
 /** View mode: a file rendered for reading, every cloze shown and outlined, and where its links lead. */
-import { parse, render, type MarkdownExtension } from '@srmd/parser'
+import type MarkdownIt from 'markdown-it'
+import { parse, render } from '@srmd/parser'
 import { get_parent } from '@srmd/scheduler'
 import { escape_html } from '@srmd/ui'
 import type { FileKind } from '@srmd/workspace'
@@ -31,8 +32,8 @@ const outside_schemes = ['http:', 'https:', 'mailto:', 'tel:', 'geo:', 'sms:']
 
 /**
  * Where the link href in the file at from leads, or null where it leads nowhere, as outside the notes folder.
- * Relative links resolve against the file's folder, and absolute paths (`/topic/a.md`) against the notes folder, as
- * in Foam.
+ * Relative links resolve against the file's folder and absolute paths against the app's origin, where the notes folder
+ * is NOTES_PATH: Foam's links and markdown-it's write a path from the folder's root, `/topic/a.md`, below it (foam.ts).
  */
 export function link_target(href: string, from: string): LinkTarget | null {
   /*
@@ -46,8 +47,7 @@ export function link_target(href: string, from: string): LinkTarget | null {
   const origin = 'https://notes.invalid'
   let url: URL
   try {
-    // A path from the notes folder resolves as one relative to it; `//` starts a host, which is no file.
-    url = href.startsWith('/') && !href.startsWith('//') ? new URL(`.${href}`, folder_url(origin, '')) : new URL(href, folder_url(origin, from))
+    url = new URL(href, folder_url(origin, from))
   } catch {
     return null
   }
@@ -65,11 +65,13 @@ function decode(text: string): string {
   }
 }
 
-/** The HTML of a file in view mode: Markdown, including notes, rendered with srmd; text preformatted. */
-export function file_html(text: string, kind: FileKind, extensions: readonly MarkdownExtension[]): string {
+/**
+ * The HTML of a file in view mode: Markdown, including notes, rendered with md, the library's (see foam.ts), which
+ * renders srmd's syntax and Foam's; text preformatted.
+ */
+export function file_html(text: string, kind: FileKind, md: MarkdownIt): string {
   if (kind === 'text') return `<pre class="plain">${escape_html(text)}</pre>`
-  const parsed = parse(text, extensions)
-  return render(parsed.events, { extensions: parsed.extensions })
+  return render(parse(text, md))
 }
 
 /**
@@ -84,14 +86,14 @@ export class NoteView {
   constructor(readonly element: HTMLElement) {}
 
   /**
-   * Show a file's text, scrolled to scroll. The document's base moves to the file's folder first, so its relative
-   * images load from there as they are inserted.
+   * Show a file's text rendered with md (see file_html()), scrolled to scroll. The document's base moves to the
+   * file's folder first, so its relative images load from there as they are inserted.
    */
-  show(path: string, text: string, kind: FileKind, extensions: readonly MarkdownExtension[], scroll = 0): void {
+  show(path: string, text: string, kind: FileKind, md: MarkdownIt, scroll = 0): void {
     /* Point the base at the file's folder, insert the rendered file, wrap wide blocks, then restore the scroll position. */
     document.querySelector('base')!.href = folder_url(location.origin, path)
     this.path = path
-    this.element.innerHTML = `<article class="note">${file_html(text, kind, extensions)}</article>`
+    this.element.innerHTML = `<article class="note">${file_html(text, kind, md)}</article>`
     // Tables scroll sideways in a wrapper; the wrapper keeps horizontal swipes inside it rather than opening the drawer.
     for (const table of Array.from(this.element.querySelectorAll('table'))) {
       const wrapper = document.createElement('div')

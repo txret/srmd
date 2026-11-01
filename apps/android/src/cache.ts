@@ -13,6 +13,8 @@ export interface TextCache {
   get(path: string): CachedText | undefined
   put(path: string, entry: CachedText): void
   delete(path: string): void
+  /** The paths of the texts kept, also those kept in earlier sessions. */
+  paths(): string[]
 }
 
 /** An edit not yet saved, kept while the app is in the background in case Android ends it. */
@@ -84,6 +86,11 @@ export class Cache implements TextCache {
   put(path: string, entry: CachedText): void {
     this.texts[path] = entry
     this.store('texts', store => store.put(entry, path))
+  }
+
+  /** The paths of the texts kept. */
+  paths(): string[] {
+    return Object.keys(this.texts)
   }
 
   /** Forget a file's text. */

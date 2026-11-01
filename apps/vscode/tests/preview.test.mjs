@@ -15,6 +15,23 @@ const wiki_links = md => md.inline.ruler.before('link', 'wiki_link', (state, sil
   state.pos += match[0].length
   return true
 })
+/**
+ * Like Foam's embeds since it renders them through the preview's markdown-it: the embedded file's text, by its name,
+ * parsed and rendered by the instance in an environment of its own, which names no document.
+ */
+const embeds = texts => md => {
+  md.inline.ruler.before('link', 'embed', (state, silent) => {
+    const match = /^!\[\[([^\]]+)\]\]/.exec(state.src.slice(state.pos))
+    if (!match) return false
+    if (!silent) state.push('embed', '', 0).content = match[1]
+    state.pos += match[0].length
+    return true
+  })
+  md.renderer.rules.embed = (tokens, index) => {
+    const env = {}
+    return `<div class="embed">${md.renderer.render(md.parse(texts[tokens[index].content], env), md.options, env)}</div>`
+  }
+}
 /** Like VS Code's own source map plugin, added after the extensions': blocks name their line for scroll sync. */
 const source_lines = md => md.core.ruler.push('source_lines', state => {
   for (const token of state.tokens) if (token.map && token.type !== 'inline') token.attrSet('data-line', String(token.map[0]))
@@ -150,32 +167,51 @@ First.
  * The Markdown preview renders notes while srmd is on, by the current suffixes and extensions, and redraws on
  * changes.
  * VS Code caches a document's tokens and renders them again at each preview update, so one parse renders with
- * the settings of each render. Every settings change asks VS Code to redraw the open previews. With the Foam
- * placeholders, srmd reads a wiki link as one unit, so the colons in it open no cloze.
+ * the settings of each render. Every settings change asks VS Code to redraw the open previews.
  */
 export async function test_notes_render_while_srmd_is_on_with_the_current_settings(t) {
-  const source = 'Q:: [[note:: x]]'
+  const source = 'Q:: one ::: two'
   const host = await start_host(t, source, { enabled: false })
   const md = host.extend_markdown_it(new MarkdownIt())
   const tokens = md.parse(source, { currentDocument: undefined })
   const render = path => md.renderer.render(tokens, md.options, { currentDocument: uri(path) })
-  assert.equal(render('/workspace/topic/a.sr.md'), '<p>Q:: [[note:: x]]</p>\n')
+  assert.equal(render('/workspace/topic/a.sr.md'), '<p>Q:: one ::: two</p>\n')
   assert.equal(host.preview_refreshes, 0)
 
   host.change_settings({ enabled: true })
   assert.equal(host.preview_refreshes, 1)
   assert.equal(render('/workspace/topic/a.sr.md'), `
-<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">[[note: <span class="cloze" data-ordinal="2" data-card="[:-2]: n 0 0 0 0 0 0 0 0">x]]</span></span></p>
+<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">one : <span class="cloze" data-ordinal="2" data-card="[:-2]: n 0 0 0 0 0 0 0 0">two</span></span></p>
 `.slice(1))
   await wait_until(() => host.state.nodes['topic/a.sr.md'])
 
-  host.change_settings({ suffixes: ['.cards.md'], extensions: ['foam-placeholders'] })
+  host.change_settings({ suffixes: ['.cards.md'] })
   assert.equal(host.preview_refreshes, 2)
-  assert.equal(render('/workspace/topic/a.sr.md'), '<p>Q:: [[note:: x]]</p>\n')
+  assert.equal(render('/workspace/topic/a.sr.md'), '<p>Q:: one ::: two</p>\n')
   assert.equal(render('/workspace/topic/a.cards.md'), `
-<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">[[note:: x]]</span></p>
+<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">one : <span class="cloze" data-ordinal="2" data-card="[:-2]: n 0 0 0 0 0 0 0 0">two</span></span></p>
 `.slice(1))
   await wait_until(() => !host.state.nodes['topic/a.sr.md'])
+}
+
+/**
+ * Foam renders an embed through the preview's markdown-it while the note renders: the embedded note's clozes show with
+ * ordinal 0 and no card, as it is not the note reviewed, and its metadata shows nothing. The same file previewed on its
+ * own is no note, and stays plain Markdown, its definition text.
+ */
+export async function test_embedded_notes_show_their_clozes_with_ordinal_0(t) {
+  const texts = { b: 'B:: honey[:1]\n\n[:1]: k 20261016040000 1 20261015120000 2.3 2.1 0 1 0\n' }
+  const host = await start_host(t, 'Q:: one\n\n![[b]]\n', {})
+  const md = host.extend_markdown_it(new MarkdownIt().use(embeds(texts)))
+  assert.equal(preview(md, '/workspace/topic/a.sr.md', 'Q:: one\n\n![[b]]\n'), `
+<p>Q: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">one</span></p>
+<p><div class="embed"><p>B: <span class="cloze" data-ordinal="0">honey</span></p>
+</div></p>
+`.slice(1))
+  assert.equal(preview(md, '/workspace/topic/b.md', texts.b), `
+<p>B:: honey[:1]</p>
+<p>[:1]: k 20261016040000 1 20261015120000 2.3 2.1 0 1 0</p>
+`.slice(1))
 }
 
 // Run every test_ function above as a test named after it.

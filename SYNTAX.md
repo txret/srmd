@@ -41,13 +41,13 @@ An explicit closer is `<` followed by at least two marker symbols, with any semi
 
 An opener at a block's end (implicitly including paragraphs consisting only of the opener), excluding whitespace, opens a **block cloze**. Otherwise, it opens an **inline cloze**.
 
-| Cloze                    | End                                                                             |
-|--------------------------|---------------------------------------------------------------------------------|
-| Implicit inline          | Before the next hard line break or parent element's end, whichever comes first. |
-| Implicit block           | After the next Markdown block.                                                  |
-| Explicit inline or block | At its closing marker.                                                          |
+| Cloze                    | End                                                                       |
+|--------------------------|---------------------------------------------------------------------------|
+| Implicit inline          | Before the next hard line break or the end of its paragraph or table cell. |
+| Implicit block           | After the next Markdown block.                                            |
+| Explicit inline or block | At its closing marker.                                                    |
 
-Inline clozes contain no blocks; block clozes contain one or more. Soft line breaks do not end inline clozes.
+Inline clozes contain no blocks; block clozes contain one or more. Soft line breaks do not end inline clozes. These are syntactical ends, which card references follow. An inline cloze opened inside an inline element, such as emphasis or a link's text, renders only up to that element's end, since HTML cannot straddle it, but still ends syntactically as above: its reference goes there, and a closing marker after the element still closes it. Writing such clozes is discouraged.
 
 ```markdown
 :: Inline, even at a paragraph's start.
@@ -166,13 +166,25 @@ Only a card's first cloze receives a reference; continuations never claim refere
 | First cloze                              | Reference position                                                   |
 |------------------------------------------|----------------------------------------------------------------------|
 | Explicit, inline or block                | Immediately after its closing marker.                                |
-| Implicit inline                          | At the end of its content.                                           |
+| Implicit inline                          | At its end, before whitespace and references there.                  |
 | Implicit block consisting of a paragraph | At the end of the paragraph's text.                                  |
 | Other implicit block                     | On a separate line after its last block, inside that block's parent. |
 
 For block references, canonically omit intervening blank lines unless Markdown requires separation to terminate the preceding block; optionally one blank line is permitted.
 
 When first clozes share an ending, assign references innermost-to-outermost for all concerned clozes. Resolve ownership before definition lookup; a missing or unusable definition does not change assignment. In these circumstances also blank scheduling groups are assigned a reference (but no card definition) for disambiguation.
+
+## Foam syntax
+
+Notes can use [Foam](https://foambubble.github.io/foam/)'s notation. It is Foam's, not part of srmd's syntax: Foam's own Markdown plugins render it, in the Android app and in VS Code where Foam is installed.
+
+| Construct    | Syntax                                                     | Meaning                                                                      |
+|--------------|------------------------------------------------------------|------------------------------------------------------------------------------|
+| Wiki link    | `[[note]]`, `[[note#Section]]`, `[[note\|label]]`          | A link to a note or other file, found as Foam finds it; `#` names a section. |
+| Embed        | `![[note]]`, `![[note#Section]]`, `![[diagram.png\|alt]]`  | The note, section or block, or the image, shown in place.                    |
+| Block anchor | `^id` ending a paragraph, list item, heading or table cell | Names its block for links and embeds.                                        |
+
+srmd's syntax is found before Foam's plugins look at the text, so srmd reads Foam's constructs as any other text: cloze markers and references inside a wiki link's brackets are srmd syntax, and a block anchor ending an implicit cloze is content of it, after which its reference would go. An implicit cloze ending in a block anchor is unsupported; end it explicitly before the anchor, `Q::>answer<:: ^id`.
 
 ## HTML
 
@@ -186,6 +198,8 @@ When first clozes share an ending, assign references innermost-to-outermost for 
 
 Cloze wrappers carry class `cloze`, `data-ordinal` (card ordinal) and `data-card` (current scheduling as a single-line card definition). In `data-card`, a card with a matched definition keeps that definition's identifier; any other card has the negated card ordinal, e.g. `[:-2]: n 0 0 0 0 0 0 0 0`. The note HTML is the same whichever card is reviewed.
 
+Foam's constructs render as Foam's plugins render them where they are installed, and as the text they are elsewhere. What a note embeds, as Foam's plugins render embeds, is not the note reviewed, whether the embedded file is a note or other Markdown: its srmd syntax applies, its clozes carry `data-ordinal="0"` and no `data-card`, and its definitions and references are hidden.
+
 The reviewer marks the reviewed card's clozes, the **active** clozes, with class `active`: hidden on the front, shown on the back. All other clozes are **inactive**: hidden on both sides by default, configurable. Inactive ancestors of active clozes remain visible on both sides. The reviewer hides a cloze by adding class `hide` and reveals it by removing that class.
 
 ## Loading and saving
@@ -196,4 +210,4 @@ Loading changes no Markdown on disk except for writing resolved hints (see manua
 2. **Place references.** Update existing references in place; write one for each selected group without one. Remove surplus and misplaced references in eligible Markdown. A new inline reference is written after a space where the text before it would otherwise absorb it: an implicit opener, `!` (an image), an escaping backslash, or a literal URL (`https://…`, `www.…`), which runs to the next whitespace.
 3. **Update definitions.** Update matched definitions in place, written with all ten fields, including those of cards with blank scheduling. Insert new definitions for cards with scheduling data after the last root-level definition, or at EOF after a blank line if none exists. Remove orphaned and duplicate definitions. Sort the last run of root-level definitions (with nothing but blank lines between them), including the inserted ones, by ascending reference.
 
-Preserve unrelated source and surrounding whitespace, including escaped references, syntax in excluded contexts, and malformed definitions.
+Preserve unrelated source and surrounding whitespace, including escaped references, syntax in excluded contexts, and malformed definitions. Every save, of a review or of resolved hints, keeps the note's line endings and byte order mark; a note mixing line endings is saved with one kind, `\r\n` if it has any, else `\r`.

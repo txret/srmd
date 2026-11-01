@@ -1,4 +1,4 @@
-// review_scopes(): the notes and folders holding cards, offered for choosing what to review, with fuzzy search.
+// review_scopes(): the notes and folders holding cards, offered for choosing what to review.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { Scheduler } from '../../scheduler/src/index.ts'
@@ -23,17 +23,12 @@ function make_state() {
   return scheduler.state
 }
 
-/** The paths review_scopes() offers for a query, in its order. */
-function paths(query) {
-  return review_scopes(make_state(), query, 'workspace').map(scope => scope.path)
-}
-
 /**
- * Without a query, a blank one included, every note and folder holding cards is offered in display order with its
- * counts, the open folder first; a note without cards is left out, and problems show on the note and its folders.
+ * Every note and folder holding cards is offered in display order with its counts, the open folder first; a note
+ * without cards is left out, and problems show on the note and its folders.
  */
-export function test_without_a_query_every_scope_with_cards_is_offered_in_display_order() {
-  assert.deepEqual(review_scopes(make_state(), '  ', 'workspace'), [
+export function test_every_scope_with_cards_is_offered_in_display_order() {
+  assert.deepEqual(review_scopes(make_state()), [
     { path: '', folder: true, counts: { due: 1, new: 3, later: 0 }, problems: true },
     { path: 'other', folder: true, counts: { due: 0, new: 1, later: 0 }, problems: true },
     { path: 'other/deep', folder: true, counts: { due: 0, new: 1, later: 0 }, problems: true },
@@ -42,23 +37,6 @@ export function test_without_a_query_every_scope_with_cards_is_offered_in_displa
     { path: 'topic/a.sr.md', folder: false, counts: { due: 1, new: 1, later: 0 }, problems: false },
     { path: 'apart.sr.md', folder: false, counts: { due: 0, new: 1, later: 0 }, problems: false }
   ])
-}
-
-/**
- * A query matches a path containing each of its terms as characters in order, ignoring case; the open folder
- * matches by its name. Matches rank by characters starting words, then shorter paths.
- */
-export function test_a_query_matches_its_terms_as_characters_in_order() {
-  assert.deepEqual(paths('DEEP'), ['other/deep', 'other/deep/c.sr.md'])
-  // Across words and folders.
-  assert.deepEqual(paths('tpa'), ['topic/a.sr.md'])
-  // Every term must match, in any order.
-  assert.deepEqual(paths('sr deep'), ['other/deep/c.sr.md'])
-  assert.deepEqual(paths('worksp'), [''])
-  assert.deepEqual(paths('ct'), [])
-  // `o` and `c` start words only in other/deep/c.sr.md; the other matches tie and come shortest first.
-  assert.deepEqual(paths('oc'), ['other/deep/c.sr.md', 'topic', '', 'topic/a.sr.md'])
-  assert.deepEqual(paths('sr'), ['apart.sr.md', 'topic/a.sr.md', 'other/deep/c.sr.md'])
 }
 
 // Run every test_ function above as a test named after it.

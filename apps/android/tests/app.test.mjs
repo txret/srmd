@@ -66,7 +66,7 @@ export async function test_a_note_opened_from_the_drawer_shows_every_cloze(t) {
   assert.equal(await mode(page), 'view')
   assert.equal(await layers(page), '')
   assert.equal(await page.evaluate(`document.querySelector('#view .note').innerHTML`),
-    '<p>The heart has: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">four chambers</span></p>\n')
+    '<p>The heart has: <span class="cloze" data-ordinal="1" data-card="[:-1]: n 0 0 0 0 0 0 0 0">four chambers</span></p>')
   assert.equal(await page.evaluate(`document.getElementById('drawer').classList.contains('open')`), false)
 
   await back(page)
@@ -167,75 +167,13 @@ export async function test_leaving_edit_mode_asks_to_save_and_saves_the_edit(t) 
   await page.tap('#dialog button[data-id="save"]')
   await page.wait_for(`document.getElementById('main').dataset.mode === 'view'`)
   assert.deepEqual(await page.evaluate('window.mock_native.state.writes'), [['a.md', 'New: # Title\n']])
-  await page.wait_for(`document.querySelector('#view .note')?.innerHTML === '<p>New: # Title</p>\\n'`)
+  await page.wait_for(`document.querySelector('#view .note')?.innerHTML === '<p>New: # Title</p>'`)
   assert.equal(await layers(page), '')
   assert.equal(await page.evaluate(`document.getElementById('toast').textContent`), 'Saved a.md.')
 }
 
 /** The lines of the text CodeMirror shows, joined by line breaks. */
 const editor_text = page => page.evaluate(`[...document.querySelectorAll('#editor .cm-line')].map(line => line.textContent).join('\\n')`)
-
-/**
- * The drawer's Format, enabled in edit mode for Markdown files, formats the text being edited and closes the drawer;
- * Shift+Alt+F does too, and a toast says when the text is formatted already. Saving writes the formatted text. A text
- * file is not formatted.
- */
-export async function test_the_text_being_edited_is_formatted(t) {
-  const page = await open_app(t, { 'a.sr.md': 'Q::\n* one\n* two\n', 'b.txt': '* text\n' })
-  await swipe_right(page)
-  await page.tap('#tree .row[data-path="b.txt"] .name')
-  await page.wait_for(`document.querySelector('#view .plain')`)
-  await swipe_right(page)
-  await page.tap('#toggle')
-  await page.wait_for(`document.querySelector('#editor .cm-content')`)
-  await swipe_right(page)
-  assert.equal(await page.evaluate(`document.getElementById('format').disabled`), true)
-  await page.tap('#toggle')
-  await page.wait_for(`document.getElementById('main').dataset.mode === 'view'`)
-
-  await swipe_right(page)
-  await page.tap('#tree .row[data-path="a.sr.md"] .name')
-  await page.wait_for(`document.querySelector('#view .note')`)
-  await swipe_right(page)
-  assert.equal(await page.evaluate(`document.getElementById('format').disabled`), true)
-  await page.tap('#toggle')
-  await page.wait_for(`document.querySelector('#editor .cm-content')`)
-  await swipe_right(page)
-  assert.equal(await page.evaluate(`document.getElementById('format').getAttribute('aria-label')`), 'Format')
-  assert.equal(await page.evaluate(`document.getElementById('format').disabled`), false)
-  await page.tap('#format')
-  await page.wait_for(`!document.getElementById('drawer').classList.contains('open')`)
-  assert.equal(await editor_text(page), 'Q::\n\n- one\n- two\n')
-  assert.equal(await layers(page), 'edit')
-
-  await page.evaluate(`document.querySelector('#editor .cm-content').focus()`)
-  await page.press('F', 'KeyF', 1 | 8)
-  assert.equal(await page.evaluate(`document.getElementById('toast').textContent`), 'a.sr.md is already formatted.')
-  await back(page)
-  await page.wait_for(`!document.getElementById('dialog').hidden`)
-  await page.tap('#dialog button[data-id="save"]')
-  await page.wait_for(`document.getElementById('main').dataset.mode === 'view'`)
-  assert.deepEqual(await page.evaluate('window.mock_native.state.writes'), [['a.sr.md', 'Q::\n\n- one\n- two\n']])
-}
-
-/**
- * Text whose formatted form would render differently stays as it is, with a toast: a table row with more cells than
- * its header would widen the header.
- */
-export async function test_text_that_would_render_differently_stays_unformatted(t) {
-  const page = await open_app(t, { 'a.md': '| a |\n|---|\n| b | extra |\n' })
-  await swipe_right(page)
-  await page.tap('#tree .row[data-path="a.md"] .name')
-  await page.wait_for(`document.querySelector('#view .note')`)
-  await swipe_right(page)
-  await page.tap('#toggle')
-  await page.wait_for(`document.querySelector('#editor .cm-content')`)
-  await swipe_right(page)
-  await page.tap('#format')
-  await page.wait_for(`document.getElementById('toast').textContent`)
-  assert.equal(await page.evaluate(`document.getElementById('toast').textContent`), 'Formatting a.md would change how it renders, so it was left unchanged.')
-  assert.equal(await editor_text(page), '| a |\n|---|\n| b | extra |\n')
-}
 
 /**
  * An edit of a file a sync changed meanwhile is not saved over it: the user may keep editing, which writes nothing, or
@@ -287,7 +225,7 @@ export async function test_links_open_files_over_the_note_and_back_returns(t) {
   await page.wait_for(`document.querySelector('#view .note')`)
 
   await page.tap('#view a[href="../b.md"]')
-  await page.wait_for(`window.srmd_app.shown_path() === 'b.md' && document.querySelector('#view .note')?.innerHTML === '<h1>B</h1>\\n'`)
+  await page.wait_for(`window.srmd_app.shown_path() === 'b.md' && document.querySelector('#view .note')?.innerHTML === '<h1>B</h1>'`)
   assert.equal(await layers(page), 'link')
   assert.equal(await page.evaluate('window.mock_native.state.back_handled'), true)
 
@@ -300,6 +238,112 @@ export async function test_links_open_files_over_the_note_and_back_returns(t) {
   await page.wait_for(`window.mock_native.state.opened.length`)
   assert.deepEqual(await page.evaluate('[window.mock_native.state.links, window.mock_native.state.opened]'), [['https://example.com/x'], ['topic/diagram.png']])
   assert.equal(await page.evaluate(`window.srmd_app.shown_path()`), 'topic/a.md')
+}
+
+/**
+ * A file's wiki links and embeds show as Foam's own plugins render them, once Foam has read the files they point at:
+ * the link with the linked file's title and its path below the notes folder, and the embedded files, a note and a
+ * Markdown file that is no note, with srmd syntax as every file the app shows, their clozes with ordinal 0, as they
+ * are not reviewed here, in the place Foam's markup takes in its paragraph. Tapping the link opens the file over the
+ * note.
+ */
+export async function test_wiki_links_and_embeds_show_and_open_their_files(t) {
+  const page = await open_app(t, {
+    'topic/a.md': '# A\n\nSee [[b]].\n\n![[c.sr]]\n\n![[d]]\n', 'b.md': '# Bee\n', 'd.md': 'D:: plain\n',
+    'c.sr.md': 'C:: sea[:1]\n\n[:1]: k 20261016040000 1 20261015120000 2.3 2.1 0 1 0\n'
+  })
+  await swipe_right(page)
+  await page.tap('#tree .row[data-path="topic"] .name')
+  await page.tap('#tree .row[data-path="topic/a.md"] .name')
+  // The file renders at once, its link titled by the file's name, and again once Foam has read the linked files.
+  await page.wait_for(`document.querySelector('#view a.foam-note-link')?.title === 'Bee'`)
+  assert.equal(await page.evaluate(`document.querySelector('#view .note').innerHTML`), `
+<h1>A</h1>
+<p>See <a class="foam-note-link" title="Bee" href="/notes/b.md" data-href="/notes/b.md">Bee</a>.</p>
+<p></p><div class="embed-container-note">
+<p>C: <span class="cloze" data-ordinal="0">sea</span></p>
+</div><p></p>
+<p></p><div class="embed-container-note">
+<p>D: <span class="cloze" data-ordinal="0">plain</span></p>
+</div><p></p>`.slice(1))
+
+  await page.tap('#view a.foam-note-link')
+  await page.wait_for(`window.srmd_app.shown_path() === 'b.md' && document.querySelector('#view .note')?.innerHTML === '<h1>Bee</h1>'`)
+  assert.equal(await layers(page), 'link')
+}
+
+/**
+ * In a review, tapping a link in a hidden cloze reveals the cloze rather than opening the link, which is part of the
+ * answer: here the cloze of the first card, shown as text around the second card's. Once the cloze shows, tapping the
+ * link opens its file over the review.
+ */
+export async function test_a_link_in_a_hidden_cloze_reveals_the_cloze(t) {
+  const page = await open_app(t, { 'a.sr.md': 'Q:: [[b]] and K:: c\n', 'b.md': '# Bee\n' })
+  await swipe_right(page)
+  await page.tap('#tree .row[data-path="a.sr.md"] .review')
+  await page.wait_for(`document.querySelector('#review .cloze.active[data-ordinal="1"]')`)
+  await page.tap('#review .footer .front .flip-btn')
+  await page.tap('#review .choice-btn[data-id="good"]')
+  await page.wait_for(`document.querySelector('#review .cloze.active[data-ordinal="2"] a') === null && document.querySelector('#review .cloze.active[data-ordinal="2"]')`)
+  const outer = () => page.evaluate(`document.querySelector('#review .cloze[data-ordinal="1"]').className`)
+  assert.equal(await outer(), 'cloze hide')
+
+  await page.tap('#review a.foam-note-link')
+  assert.equal(await outer(), 'cloze')
+  assert.equal(await layers(page), 'review')
+  await page.tap('#review a.foam-note-link')
+  await page.wait_for(`window.srmd_app.shown_path() === 'b.md'`)
+  assert.equal(await layers(page), 'review,link')
+}
+
+/**
+ * In a review, the swipe up from the handle opens the reviewer's own search of the note, and so does its button: either
+ * way the search is a layer, which Back closes, and closing it the reviewer's own way, tapping outside it, removes.
+ */
+export async function test_in_a_review_the_reviewers_search_is_a_layer(t) {
+  const page = await open_app(t, { 'a.sr.md': 'Q:: one\n' })
+  await swipe_right(page)
+  await page.tap('#tree .row[data-path="a.sr.md"] .review')
+  await page.wait_for(`document.querySelector('#review .sr-reviewer')`)
+  await page.swipe({ x: 206, y: 850 }, { x: 206, y: 760 }, 4)
+  await page.wait_for(`document.querySelector('#review .sr-reviewer.search')`)
+  assert.equal(await layers(page), 'review,note_search')
+  await back(page)
+  await page.wait_for(`!document.querySelector('#review .sr-reviewer.search')`)
+  assert.equal(await layers(page), 'review')
+  await page.tap('#review .footer .front .open-search-btn')
+  assert.equal(await layers(page), 'review,note_search')
+  await page.tap('#review .title')
+  assert.equal(await layers(page), 'review')
+}
+
+/**
+ * In edit mode, the swipe up from the handle opens CodeMirror's search panel, which marks the matches, ignoring case:
+ * the panel is a layer, which Back closes, and closing it CodeMirror's own way, its close button, removes.
+ */
+export async function test_in_edit_mode_codemirrors_search_panel_is_a_layer(t) {
+  const page = await open_app(t, { 'a.md': 'one two One\n' })
+  await swipe_right(page)
+  await page.tap('#tree .row[data-path="a.md"] .name')
+  await page.wait_for(`document.querySelector('#view .note')`)
+  await swipe_right(page)
+  await page.tap('#toggle')
+  await page.wait_for(`document.querySelector('#editor .cm-content')`)
+  await page.swipe({ x: 206, y: 850 }, { x: 206, y: 760 }, 4)
+  await page.wait_for(`document.activeElement?.matches('#editor .cm-search [name="search"]')`)
+  assert.equal(await layers(page), 'edit,note_search')
+  await page.type('one')
+  // A key lifted, as typing ends each key, has the panel search what its field holds.
+  await page.press('a', 'KeyA', 0)
+  await page.wait_for(`document.querySelectorAll('#editor .cm-searchMatch').length === 2`)
+  await back(page)
+  await page.wait_for(`!document.querySelector('#editor .cm-search')`)
+  assert.equal(await layers(page), 'edit')
+  await page.swipe({ x: 206, y: 850 }, { x: 206, y: 760 }, 4)
+  await page.wait_for(`document.querySelector('#editor .cm-search')`)
+  await page.tap('#editor .cm-search [name="close"]')
+  await page.wait_for(`!document.querySelector('#editor .cm-search')`)
+  assert.equal(await layers(page), 'edit')
 }
 
 /**
@@ -357,54 +401,6 @@ export async function test_changed_settings_are_stored_and_reload_the_notes(t) {
   await back(page)
   await page.wait_for(`document.getElementById('settings').hidden`)
   assert.equal(await layers(page), '')
-}
-
-/**
- * The settings page's Formatting section offers the formatting options, the values in effect selected. A change is
- * stored, and the editor's Format follows it; a line width too narrow is marked and not stored.
- */
-export async function test_formatting_follows_the_formatting_settings(t) {
-  const page = await open_app(t, { 'a.md': 'One two three four five six seven eight.\n\n- a\n- b\n' })
-  await swipe_right(page)
-  await page.tap('#open-settings')
-  await page.wait_for(`!document.getElementById('settings').hidden`)
-  assert.deepEqual(await page.evaluate(`[...document.querySelectorAll('#settings select[name^="format."]')]
-    .map(select => [select.name, select.value, [...select.options].map(option => option.textContent)])`), [
-    ['format.wrap', 'preserve', ['As written', 'Wrapped at the line width', 'One per paragraph']],
-    ['format.numbering', 'increment', ['Counting up: 1. 2. 3.', 'The first number repeated: 1. 1. 1.']],
-    ['format.bullet', '-', ['- …', '* …', '+ …']],
-    ['format.tableDelimiters', 'compact', ['|---|:-:|', '| --- | :-: |']],
-    ['format.emphasis', 'preserve', ['As written', '*…*', '_…_']],
-    ['format.strong', 'preserve', ['As written', '**…**', '__…__']]
-  ])
-  assert.equal(await page.evaluate(`document.querySelector('#settings input[name="format.lineWidth"]').value`), '80')
-
-  /** Set a settings control's value, as choosing or typing it does. */
-  const change = (name, value) => page.evaluate(`(() => {
-    const control = document.querySelector('#settings [name="${name}"]')
-    control.value = '${value}'
-    control.dispatchEvent(new Event('change', { bubbles: true }))
-  })()`)
-  await change('format.lineWidth', '10')
-  assert.equal(await page.evaluate(`document.querySelector('#settings [name="format.lineWidth"]').getAttribute('aria-invalid')`), 'true')
-  await change('format.lineWidth', '20')
-  await change('format.wrap', 'always')
-  await change('format.bullet', '*')
-  await page.wait_for(`window.mock_native.state.settings?.['format.bullet'] === '*'`)
-  assert.deepEqual(await page.evaluate('window.mock_native.state.settings'), { 'format.lineWidth': 20, 'format.wrap': 'always', 'format.bullet': '*' })
-  await back(page)
-  await page.wait_for(`document.getElementById('settings').hidden`)
-
-  await swipe_right(page)
-  await page.tap('#tree .row[data-path="a.md"] .name')
-  await page.wait_for(`document.querySelector('#view .note')`)
-  await swipe_right(page)
-  await page.tap('#toggle')
-  await page.wait_for(`document.querySelector('#editor .cm-content')`)
-  await swipe_right(page)
-  await page.tap('#format')
-  await page.wait_for(`!document.getElementById('drawer').classList.contains('open')`)
-  assert.equal(await editor_text(page), 'One two three four\nfive six seven\neight.\n\n* a\n* b\n')
 }
 
 /** An edit not yet saved when the app goes to the background returns in edit mode after Android ends and restarts the app. */

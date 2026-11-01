@@ -152,8 +152,9 @@ export function test_a_new_explicit_cloze_reference_follows_its_closer() {
 }
 
 /**
- * An implicit inline cloze gets a new reference at the end of its content: before the spaces or backslash of the
- * hard break ending it, and inside the emphasis ending it.
+ * An inline cloze gets a new reference at its syntactical end: an implicit one before the spaces or backslash of the
+ * hard break ending it, else at the end of its paragraph's text, also when it opened in emphasis, which ends its
+ * rendering earlier; an explicit one after its closing marker, also when that follows the end of its emphasis.
  */
 export function test_a_new_implicit_inline_cloze_reference_ends_its_content() {
   const spaces = save_reviewed('Q:: a\x20\x20\nnext\n')
@@ -165,8 +166,12 @@ export function test_a_new_implicit_inline_cloze_reference_ends_its_content() {
   assert.deepEqual(reload(backslash), { first_card: reviewed_line, saved_again: backslash })
 
   const emphasis = save_reviewed('**Q:: answer** more\n')
-  assert.equal(emphasis, `**Q:: answer[:1]** more\n\n${reviewed_line}\n`)
+  assert.equal(emphasis, `**Q:: answer** more[:1]\n\n${reviewed_line}\n`)
   assert.deepEqual(reload(emphasis), { first_card: reviewed_line, saved_again: emphasis })
+
+  const explicit = save_reviewed('**Q::>answer** more<:: after\n')
+  assert.equal(explicit, `**Q::>answer** more<::[:1] after\n\n${reviewed_line}\n`)
+  assert.deepEqual(reload(explicit), { first_card: reviewed_line, saved_again: explicit })
 }
 
 /**
@@ -252,11 +257,10 @@ last
 
 ${reviewed_line}
 `.slice(1))
-  assert.equal(render(parse(shared).events), `
-<p>: <span class="cloze" data-ordinal="1" data-card="${reviewed_line}">first</span><br />
+  assert.equal(render(parse(shared)), `
+<p>: <span class="cloze" data-ordinal="1" data-card="${reviewed_line}">first</span><br>
 last</p>
-<p>: <span class="cloze" data-ordinal="1" data-card="${reviewed_line}">continuation</span></p>
-`.slice(1))
+<p>: <span class="cloze" data-ordinal="1" data-card="${reviewed_line}">continuation</span></p>`.slice(1))
 }
 
 /**
@@ -980,7 +984,7 @@ Stray [:9] text.
     { ...parsed.scheduling[1], state: 'k', due: '20261022040000' },
     { ...parsed.scheduling[2], state: 'k', due: '20261029040000' }
   ]
-  assert.equal(persist_hints(parsed.source, parsed.hints, resolved), `
+  assert.equal(persist_hints(parsed, resolved), `
 A:: a[:4]
 
 B:: b[:2]
