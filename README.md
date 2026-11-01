@@ -1,10 +1,10 @@
 # srmd
 
-A flashcard spaced repetition extension for Markdown suitable for knowlege base notes. Flashcards typically isolate facts, while knowledge-base notes organize related information and evolve over time. Keeping both synchronized duplicates work. Using unobtrusive cloze and scheduling Markdown syntax srmd generates flashcards from knowledge-base notes: note-taking first, spaced repetition second.
+A flashcard spaced repetition extension for Markdown suitable for knowlege base notes that plays nice with [Foam](https://foambubble.github.io/foam/) but does not require it. Flashcards typically isolate facts, while knowledge-base notes organize related information and evolve over time. Keeping both synchronized duplicates work. Using unobtrusive cloze and scheduling Markdown syntax srmd generates flashcards from knowledge-base notes: note-taking first, spaced repetition second.
 
 ![Screenshot](assets/screenshot.png)
 
-The Markdown notes are parsed with [markdown-it](https://github.com/markdown-it/markdown-it) and srmd's plugin for its syntax. [Foam](https://foambubble.github.io/foam/)'s wiki links and embeds render with Foam's own markdown-it plugins: the installed Foam extension's in VS Code, and Foam's code, included as a Git submodule, in the Android app, which needs no separate Foam install. Reviews are scheduled with [ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs), the TS implementation of the [FSRS algorithm](https://github.com/open-spaced-repetition/awesome-fsrs/wiki/The-Algorithm).
+Markdown is parsed using [markdown-it](https://github.com/markdown-it/markdown-it) and srmd's syntax extension. Reviews are scheduled with [ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs), the TS implementation of the [FSRS algorithm](https://github.com/open-spaced-repetition/awesome-fsrs/wiki/The-Algorithm).
 
 ```markdown
 The World population:: approx 8.3 billion
@@ -44,10 +44,11 @@ There are two applications: a VS Code extension and an Android app. The VS Code 
 - A review tab that follows the VS Code theme.
 - A reading view of notes in VS Code's Markdown preview, with every cloze shown and outlined.
 - Warnings for notes whose card definitions a save would remove.
+- Foam and other VS Code Markdown syntax extensions work in srmd views and flashcards.
 
 It is off in every workspace until turned on, from the Command Palette or the status bar, so other projects are never scanned. See [apps/vscode/README.md](apps/vscode/README.md) for its features, commands, keyboard shortcuts and settings.
 
-The Android app is primarily a tool for viewing and reviewing a Foam/knowledge base folder tree. It shows the notes folder you pick, full screen with every cloze outlined; swipe right for the folder tree with the cards' counts, swipe up to search the shown file. It reviews notes as the VS Code review tab does and edits files with [CodeMirror](https://codemirror.net/). See [apps/android/README.md](apps/android/README.md).
+The Android app is primarily a tool for viewing and reviewing a knowledge base folder tree. It shows the notes folder you pick, full screen with every cloze outlined; swipe right for the folder tree with the cards' counts, swipe up to search the shown file. It reviews notes as the VS Code review tab does and edits files with [CodeMirror](https://codemirror.net/). The android app currently has no extension API so it bundles some of Foam to be able to render Foams Markdown syntax extensions. See [apps/android/README.md](apps/android/README.md).
 
 A browser application is tentatively planned. An iOS app will require someone else as I do not own a single Apple device. The code base is split into a portable components (`shared/`) and the platform specific components (`apps/`) to minimize the platform specific code.
 
