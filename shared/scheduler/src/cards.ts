@@ -1,5 +1,5 @@
 /** FSRS adaptation, fixed intervals and due-day balancing. Parser records remain the common card representation. */
-import { fsrs, Rating, type Card as FSRSCard } from 'ts-fsrs'
+import { fsrs, Rating, S_MIN, type Card as FSRSCard } from 'ts-fsrs'
 import type { Scheduling } from '../../parser/src'
 import { add_review_days, day_diff, parse_date, serialize_date } from './dates'
 
@@ -9,13 +9,21 @@ const state_string = ['n', 'l', 'k', 'r'] as const
 /** Initial learned parameters used when a fixed-interval choice rates a card without FSRS history. */
 const default_review = fsrs().next_state(null, 0, Rating.Good)
 
-/** Decode a resolved scheduling record only at the boundary to FSRS. */
-export function to_fsrs(card: Scheduling): FSRSCard {
+/**
+ * Decode a resolved scheduling record only at the boundary to FSRS, for a review at now. A definition can be written
+ * by hand with fields left out (SYNTAX.md, "Card definitions"), and FSRS throws on two things it can then hold:
+ * - memory it cannot use, a difficulty below 1 or a stability below its minimum, is passed as none, which FSRS seeds
+ *   at the review, as for a card scheduled only by a hint;
+ * - a last review after now is passed as now.
+ */
+export function to_fsrs(card: Scheduling, now: Date): FSRSCard {
   /* Convert state and dates; the deprecated elapsed_days field is recomputed by FSRS. */
+  const usable = card.difficulty >= 1 && card.stability >= S_MIN
+  const last_review = parse_date(card.last_review)
   return {
     state: state_string.indexOf(card.state as typeof state_string[number]),
-    due: parse_date(card.due) ?? new Date(0), last_review: parse_date(card.last_review),
-    scheduled_days: card.scheduled_days, stability: card.stability, difficulty: card.difficulty,
+    due: parse_date(card.due) ?? new Date(0), last_review: last_review && last_review > now ? now : last_review,
+    scheduled_days: card.scheduled_days, stability: usable ? card.stability : 0, difficulty: usable ? card.difficulty : 0,
     learning_steps: card.learning_steps, reps: card.reps, lapses: card.lapses, elapsed_days: 0
   }
 }

@@ -81,6 +81,22 @@ Fresh:: new`.slice(1)
 }
 
 /**
+ * An edit that reaches the file before the watcher reports srmd's own save of a hint, with that save's modification
+ * time, is loaded: the note's text tells an edit from srmd's write, not the file's time.
+ */
+export async function test_an_edit_at_the_time_of_srmds_own_save_is_loaded(t) {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-15T12:00:00+02:00') })
+  const host = await start_host(t, 'Q:: answer[:8]\n\n[:8]: 7d\n', {})
+  const path = '/workspace/topic/a.sr.md'
+  assert.deepEqual(host.files.get(path), { text: 'Q:: answer[:8]\n\n[:8]: k 20261022040000\n', mtime: 2 })
+  const edited = 'Q:: answer[:8]\n\nFresh:: new\n\n[:8]: k 20261022040000\n'
+  host.files.set(path, { text: edited, mtime: 2 })
+  host.changes.fire(uri(path))
+  await wait_until(() => host.state.nodes['topic/a.sr.md'].cards.length === 2)
+  assert.deepEqual(host.files.get(path), { text: edited, mtime: 2 })
+}
+
+/**
  * Notes with problems are logged, announced, marked in both views and the review tab, and keep their rows on load.
  * A review save removes duplicate and unmatched rows, so the user must notice them before a review saves the
  * note. Loading writes only a resolved hint's definition, which keeps those definitions.

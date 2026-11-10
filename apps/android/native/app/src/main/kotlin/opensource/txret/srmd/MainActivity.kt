@@ -1,7 +1,6 @@
 package opensource.txret.srmd
 
 import android.annotation.SuppressLint
-import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.content.res.Configuration
@@ -178,13 +177,13 @@ class MainActivity : ComponentActivity(), Host {
         Intent(Intent.ACTION_VIEW).setDataAndType(uri, type).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     )
 
-    override fun openUrl(url: String): Boolean = start(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    override fun openUrl(url: String): Boolean = opensOutside(url) && start(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
 
-    /** Start another app's activity; false when none handles the intent. */
+    /** Start another app's activity; false when none handles the intent, or Android refuses to send it. */
     private fun start(intent: Intent): Boolean = try {
         startActivity(intent)
         true
-    } catch (_: ActivityNotFoundException) {
+    } catch (_: RuntimeException) {
         false
     }
 

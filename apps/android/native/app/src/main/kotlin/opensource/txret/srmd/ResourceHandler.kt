@@ -23,6 +23,15 @@ val APP_PAGE = "https://${WebViewAssetLoader.DEFAULT_DOMAIN}/app/index.html"
  */
 fun isAppPage(url: String): Boolean = url == APP_PAGE
 
+/** The URL schemes opened outside the app, the ones the web app follows links of (link_target() in note_view.ts). */
+private val outsideSchemes = setOf("http", "https", "mailto", "tel", "geo", "sms")
+
+/**
+ * Whether [url] opens outside the app: a web, mail, phone, map or message link. The web app asks for no other, but the
+ * HTML a note holds can navigate the page anywhere, such as to a `file:` address, which Android refuses to hand on.
+ */
+fun opensOutside(url: String): Boolean = url.substringBefore(':', "").lowercase() in outsideSchemes
+
 /** Types of the web app's files and of common note resources that Android's own table may lack. */
 private val knownTypes = mapOf(
     "html" to "text/html", "js" to "text/javascript", "css" to "text/css", "map" to "application/json",

@@ -49,7 +49,10 @@ export class Library {
     private readonly bridge: Bridge, readonly storage: AndroidStorage, private settings: AppSettings,
     private readonly log: Log, private readonly events: WorkspaceEvents, public root_name: string
   ) {
-    this.foam = new Foam(path => storage.read(path), path => this.kind(path) === 'note' || this.kind(path) === 'markdown')
+    this.foam = new Foam(
+      path => storage.read(path), path => this.kind(path) === 'note' || this.kind(path) === 'markdown',
+      path => storage.current(path)
+    )
     this.workspace = new NotesWorkspace(storage, settings, log, events, this.foam)
   }
 
@@ -141,11 +144,10 @@ export class Library {
   async read(path: string): Promise<string> {
     const text = await this.storage.read(path)
     if (this.loaded && this.kind(path) === 'note') {
-      this.workspace.run(async () => {
-        // Read again inside the task: another task may have loaded a newer text since.
-        const parsed = await this.workspace.read(path)
-        if (!this.workspace.is_current(path, parsed)) await this.workspace.reload(path, parsed)
-      }).catch((error: unknown) => this.log.error(`${path}: ${error_text(error)}`))
+      // The task reads the file again, as another task may have loaded a newer text since, and leaves a note whose
+      // text is unchanged as it is.
+      this.workspace.run(() => this.workspace.apply([], [path]))
+        .catch((error: unknown) => this.log.error(`${path}: ${error_text(error)}`))
     }
     return text
   }

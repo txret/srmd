@@ -20,4 +20,20 @@ class ResourceHandlerTest {
         assertFalse(isAppPage("http://appassets.androidplatform.net/app/index.html"))
         assertFalse(isAppPage("https://example.com/app/index.html"))
     }
+
+    /** Web, mail, phone, map and message links open outside the app, whatever their case; nothing else does. */
+    @Test
+    fun onlyLinksOfKnownSchemesOpenOutside() {
+        assertTrue(opensOutside("https://example.com/a"))
+        assertTrue(opensOutside("HTTP://example.com"))
+        assertTrue(opensOutside("mailto:a@example.com"))
+        assertTrue(opensOutside("tel:+46123"))
+        assertTrue(opensOutside("geo:59.3,18.1"))
+        assertTrue(opensOutside("sms:+46123"))
+        assertFalse(opensOutside("file:///sdcard/a.html"))
+        assertFalse(opensOutside("content://media/1"))
+        assertFalse(opensOutside("intent://scan/#Intent;end"))
+        assertFalse(opensOutside("javascript:alert(1)"))
+        assertFalse(opensOutside("no-scheme"))
+    }
 }

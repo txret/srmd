@@ -251,6 +251,20 @@ next
 }
 
 /**
+ * A reviewed note keeps its byte order mark and its CRLF line endings when the rating is saved.
+ */
+export async function test_a_review_keeps_the_byte_order_mark_and_line_endings(t) {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-09-24T12:00:00+02:00') })
+  const host = await start_host(t, '\uFEFFQuestion:: answer\r\n', {})
+  const pending = host.review()
+  await wait_until(() => host.panel?.document)
+  host.panel.reply('tomorrow')
+  await pending
+  assert.equal(host.files.get('/workspace/topic/a.sr.md').text,
+    '\uFEFFQuestion:: answer[:1]\r\n\r\n[:1]: k 20260925040000 1 20260924120000 2.3065 2.11810397 0 1 0\r\n')
+}
+
+/**
  * A note created during a review write loads unchanged after that write finishes.
  */
 export async function test_a_note_created_during_a_save_loads_after_it(t) {
@@ -296,9 +310,9 @@ New:: answer`.slice(1))
 
 /**
  * Review selection and saves keep sparse references separate from card ordinals.
- * Review an existing card followed by two implicit new cards, checking each displayed ordinal and save; a card shown
- * after a save shows the references the save numbered, as the note is read anew. New definitions join the last
- * root-level definition, here at the top of the note, and that block is sorted.
+ * Review an existing card followed by two implicit new cards, checking each displayed ordinal and save; after a save
+ * the note's cards carry the references the save numbered, shown and in memory, as the note is rebuilt from the saved
+ * text. New definitions join the last root-level definition, here at the top of the note, and that block is sorted.
  */
 export async function test_reviews_keep_sparse_references_separate_from_card_ordinals(t) {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-15T12:00:00+02:00') })
@@ -367,7 +381,7 @@ Fresh:: third[:3]
       difficulty: 4.2, learning_steps: 0, reps: 11, lapses: 1, ordinal: 2
     },
     {
-      ref: -3, state: 'k', due: '20261016040000', scheduled_days: 1, last_review: '20261015120000', stability: 2.3065,
+      ref: 3, state: 'k', due: '20261016040000', scheduled_days: 1, last_review: '20261015120000', stability: 2.3065,
       difficulty: 2.11810397, learning_steps: 0, reps: 1, lapses: 0, ordinal: 3
     }
   ])

@@ -22,10 +22,13 @@ export const workspace_path = (uri: vscode.Uri): string | null => {
   return str_to_uri(path).toString() === uri.toString() ? path : null
 }
 
-/** Read a workspace file as UTF-8 text. */
+/**
+ * Read a workspace file as UTF-8 text, with a byte order mark starting it kept as its first character, so a save
+ * writes it back (SYNTAX.md, "Loading and saving"); a decoder drops it otherwise.
+ */
 export async function read_file(path: string): Promise<string> {
   const data = await vscode.workspace.fs.readFile(str_to_uri(path))
-  return new TextDecoder('utf-8').decode(data)
+  return new TextDecoder('utf-8', { ignoreBOM: true }).decode(data)
 }
 
 /** Write UTF-8 text to a workspace file, creating or replacing it. */
@@ -35,14 +38,14 @@ export async function write_file(path: string, text: string): Promise<void> {
 }
 
 /**
- * Whether a workspace path is a folder, and its modification time; null only when the path does not exist,
- * including below a folder that a file replaced.
+ * Whether a workspace path is a folder; null only when the path does not exist, including below a folder that a file
+ * replaced.
  */
-export async function stat_path(path: string): Promise<{ folder: boolean; mtime: number } | null> {
+export async function stat_path(path: string): Promise<{ folder: boolean } | null> {
   /* A symbolic link reports its target's type bit as well, so test the folder bit rather than equality. */
   try {
     const stat = await vscode.workspace.fs.stat(str_to_uri(path))
-    return { folder: (stat.type & vscode.FileType.Directory) !== 0, mtime: stat.mtime }
+    return { folder: (stat.type & vscode.FileType.Directory) !== 0 }
   } catch (error: unknown) {
     // Other failures, such as denied access, say nothing about whether the path still exists.
     if (error instanceof vscode.FileSystemError && (error.code === 'FileNotFound' || error.code === 'FileNotADirectory')) return null

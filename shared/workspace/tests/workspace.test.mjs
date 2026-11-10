@@ -9,15 +9,16 @@ import { Workspace, each_limited, read_settings } from '../src/index.ts'
 import * as tests from './workspace.test.mjs'
 
 /**
- * A workspace over in-memory files, with what it wrote, logged and reported. Each test supplies its files and fixes
- * the clock. Reading a missing file fails as a host's storage would; write_error makes every write fail.
+ * A workspace over in-memory files, with what it read, wrote, logged and reported. Each test supplies its files and
+ * fixes the clock. Reading a missing file fails as a host's storage would; write_error makes every write fail.
  * @param files - Note texts by workspace-relative path; the storage reads and writes this object.
  * @param cache - Texts for Storage.load(), as a host's cache would hold them; omitted, the storage has no load().
  */
 function make_workspace(files, cache) {
-  const host = { files, writes: [], log: [], events: [], write_error: null }
+  const host = { files, reads: [], writes: [], log: [], events: [], write_error: null }
   const storage = {
     read: async path => {
+      host.reads.push(path)
       if (!(path in files)) throw new Error(`No such file: ${path}`)
       return files[path]
     },
@@ -79,8 +80,9 @@ export async function test_loading_uses_the_hosts_copy_and_review_reads_the_file
 }
 
 /**
- * A rating is saved to the note, then committed: the card leaves today's queues and the counts are published.
- * The reviewed card is the overdue second one, served before the new first; Good schedules it 29 days ahead.
+ * A rating is saved to the note, then the note is rebuilt from the saved text: the card leaves today's queues and the
+ * counts are published. The reviewed card is the overdue second one, served before the new first; Good schedules it
+ * 29 days ahead.
  */
 export async function test_a_rating_is_saved_then_committed(t) {
   t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-15T12:00:00+02:00') })
@@ -98,7 +100,30 @@ export async function test_a_rating_is_saved_then_committed(t) {
     ['a.sr.md', 'Q:: one\n\nK:: two[:1]\n\n[:1]: k 20261113110000 29 20261015120000 29.3706596 4.19102837 0 11 1\n']
   ])
   assert.deepEqual(get_counts(host.workspace.state.nodes['a.sr.md']), { due: 0, new: 1, later: 1 })
-  assert.deepEqual(host.events, ['refreshed'])
+  assert.deepEqual(host.events, ['refreshed', ['problems', 0]])
+}
+
+/**
+ * After a rating is saved, the note in memory is the saved text's: its cards carry the references the save numbered,
+ * here 1 for the new card rated, so the note's next card is selected with one read of the file and no reload.
+ */
+export async function test_a_saved_rating_leaves_the_note_as_its_saved_text(t) {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-15T12:00:00+02:00') })
+  const host = make_workspace({ 'a.sr.md': 'One:: first\n\nTwo:: second\n' })
+  await load(host.workspace, ['a.sr.md'])
+  const first = await host.workspace.run(() => host.workspace.next_card(''))
+  assert.deepEqual(await host.workspace.run(() => host.workspace.rate(first, Rating.Easy)), { status: 'saved' })
+  const saved = 'One:: first[:1]\n\nTwo:: second\n\n[:1]: k 20261023120000 8 20261015120000 8.2956 1 0 1 0\n'
+  assert.equal(host.files['a.sr.md'], saved)
+  assert.equal(host.workspace.state.nodes['a.sr.md'].version, saved)
+  assert.deepEqual(host.workspace.state.nodes['a.sr.md'].cards.map(card => card.ref), [1, -2])
+
+  host.reads.length = 0
+  host.events.length = 0
+  const second = await host.workspace.run(() => host.workspace.next_card(''))
+  assert.deepEqual([second.path, second.ordinal], ['a.sr.md', 2])
+  assert.deepEqual(host.reads, ['a.sr.md'])
+  assert.deepEqual(host.events, [])
 }
 
 /**
@@ -221,6 +246,45 @@ export async function test_applying_changes_removes_reloads_and_adds_notes(t) {
   ])
   assert.deepEqual(host.events, ['refreshed', ['problems', 1]])
   assert.deepEqual(host.writes, [['d.sr.md', 'Q:: four[:1]\n\n[:1]: k 20261022040000\n']])
+}
+
+/**
+ * A reported note whose file still holds the text it was loaded from, as a watcher reports the workspace's own save,
+ * is left as it is: nothing is rebuilt, published or announced.
+ */
+export async function test_applying_a_note_whose_text_is_unchanged_does_nothing(t) {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-10-15T12:00:00+02:00') })
+  const host = make_workspace({ 'a.sr.md': 'Q:: one\n' })
+  await load(host.workspace, ['a.sr.md'])
+  const note = host.workspace.state.nodes['a.sr.md']
+  host.events.length = 0
+
+  await host.workspace.run(() => host.workspace.apply([], ['a.sr.md']))
+  assert.equal(host.workspace.state.nodes['a.sr.md'], note)
+  assert.deepEqual(host.events, [])
+}
+
+/**
+ * Loading gives the host's event loop a turn once 16 ms have passed without one, as texts from a host's copy arrive
+ * without any: here each text takes 20 ms to arrive, so the load waits for a timer before it parses, and goes on once
+ * the timer fires.
+ */
+export async function test_loading_pauses_for_the_hosts_event_loop(t) {
+  t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: new Date('2026-10-15T12:00:00+02:00') })
+  const slow = {
+    get 'a.sr.md'() {
+      t.mock.timers.tick(20)
+      return 'Q:: one\n'
+    }
+  }
+  const host = make_workspace({}, slow)
+  const loading = load(host.workspace, ['a.sr.md'])
+  await settle()
+  assert.deepEqual(Object.keys(host.workspace.state.nodes), [''])
+
+  t.mock.timers.runAll()
+  await loading
+  assert.deepEqual(Object.keys(host.workspace.state.nodes).sort(), ['', 'a.sr.md'])
 }
 
 /**

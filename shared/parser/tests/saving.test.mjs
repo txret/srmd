@@ -106,6 +106,29 @@ export function test_a_new_block_cloze_reference_after_a_list() {
 }
 
 /**
+ * A block cloze around a list and the inline cloze ending the list's last item get new references in one save at the
+ * same place: the inline reference ends its text, and the block's reference line follows it.
+ */
+export function test_new_inline_and_line_references_at_one_place_keep_their_order() {
+  const parsed = parse('Topic::\n\n- a:: one\n- b:: two\n')
+  const saved = serialize(parsed, parsed.scheduling.map((card, index) => index === 1 ? card : { ...card, ...review }))
+  assert.equal(saved, `
+Topic::
+
+- a:: one
+- b:: two[:2]
+[:1]
+
+[:1]: l 20261016040000 0.5 20261015120000 2.3 5 1 1 0
+[:2]: l 20261016040000 0.5 20261015120000 2.3 5 1 1 0
+`.slice(1))
+  assert.equal(card_lines(parse(saved)), `
+[:1]: l 20261016040000 0.5 20261015120000 2.3 5 1 1 0
+[:-2]: n 0 0 0 0 0 0 0 0
+[:2]: l 20261016040000 0.5 20261015120000 2.3 5 1 1 0`.slice(1))
+}
+
+/**
  * Around quotes, a new reference line goes after the block in the block's own container: after a quote, on the next
  * line, which ends it; after a block in a quote, on the next quoted line.
  */
@@ -613,6 +636,20 @@ next\r
 Q:: answer\r
 next\r
 `.slice(1))
+}
+
+/**
+ * A reference line removed from between two lines of text leaves a blank line, so the text below it stays out of the
+ * block above it, here out of the cloze; in a quote the blank line keeps the quote marker.
+ */
+export function test_a_reference_line_removed_between_lines_of_text_leaves_a_blank_line() {
+  const plain = save_reviewed('Q:: answer\n[:1]\nNext line\n')
+  assert.equal(plain, `Q:: answer[:1]\n\nNext line\n\n${reviewed_line}\n`)
+  assert.deepEqual(reload(plain), { first_card: reviewed_line, saved_again: plain })
+
+  const quoted = save_reviewed('> Q:: answer\n> [:1]\n> Next line\n')
+  assert.equal(quoted, `> Q:: answer[:1]\n>\n> Next line\n\n${reviewed_line}\n`)
+  assert.deepEqual(reload(quoted), { first_card: reviewed_line, saved_again: quoted })
 }
 
 /**

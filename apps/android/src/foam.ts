@@ -7,8 +7,9 @@
  * Foam's plugins render synchronously, while the app reads files through the shell. Foam knows every file by its name,
  * from the scans; before a file renders, prepare() reads and parses the files its wiki links and embeds point at, for
  * their titles, sections and blocks, and keeps their texts for Foam's embed plugin, which reads them with
- * readFileSync() (foam_fs.ts), a few levels of embeds deep. Parsing every file instead would take as long again as
- * loading the notes, so Foam's queries, which need every file's metadata, are left out of the build
+ * readFileSync() (foam_fs.ts), a few levels of embeds deep. A text kept is used while it is the file's current one, as
+ * the app last read or wrote it; otherwise the file is read again. Parsing every file instead would take as long again
+ * as loading the notes, so Foam's queries, which need every file's metadata, are left out of the build
  * (scripts/rollup_foam.mjs). Absolute paths, which Foam writes for wiki links and image embeds, are made the URLs the app serves
  * the folder at.
  *
@@ -53,10 +54,15 @@ export class Foam {
   private shown: string | null = null
 
   /**
-   * @param read - A file's current text.
+   * @param read - A file's current text, read from the file.
    * @param is_markdown - Whether the app opens the file at path as Markdown, a note included: Foam's notes.
+   * @param current - A file's text as the app last read or wrote it, without reading; undefined when it holds none or
+   *   the file changed since.
    */
-  constructor(private readonly read: (path: string) => Promise<string>, private readonly is_markdown: (path: string) => boolean) {
+  constructor(
+    private readonly read: (path: string) => Promise<string>, private readonly is_markdown: (path: string) => boolean,
+    private readonly current: (path: string) => string | undefined
+  ) {
     /*
      * 1. Foam's workspace over a store listing the files Foam knows and reading them with read(); nothing writes
      *    through it. Foam's Markdown provider, which resolves its notes' links, takes the app's Markdown files for its
@@ -114,13 +120,15 @@ export class Foam {
 
   /**
    * Read and parse what rendering a file needs (see the module comment): the files its wiki links and embeds point at,
-   * and theirs for embedded notes, embed_depth levels deep; files read before are not read again.
+   * and theirs for embedded notes, embed_depth levels deep; files whose current text was read before are not read
+   * again. A file without wiki links needs nothing, and is not parsed here.
    * @param path - The file to render, which becomes the file shown.
    * @param text - Its current text.
    */
   async prepare(path: string, text: string): Promise<void> {
     /* Walk the links level by level, from the file's own resource, which also gives embeds of its own sections. */
     this.shown = path
+    if (!text.includes('[[')) return
     let level: Resource[] = [this.update(path, text)]
     for (let depth = 0; depth <= embed_depth && level.length; depth++) {
       const next: Resource[] = []
@@ -137,9 +145,13 @@ export class Foam {
     }
   }
 
-  /** Read and parse a Markdown file Foam knows by name, unless it was since it last changed; unreadable, it keeps its name. */
+  /**
+   * Read and parse a Markdown file Foam knows by name, unless the text kept of it is its current one; unreadable, it
+   * keeps what Foam knew of it.
+   */
   private async parse(path: string): Promise<Resource | undefined> {
-    if (texts.has(uri_of(path).toFsPath())) return this.workspace.find(uri_of(path)) ?? undefined
+    const kept = texts.get(uri_of(path).toFsPath())
+    if (kept !== undefined && kept === this.current(path)) return this.workspace.find(uri_of(path)) ?? undefined
     try {
       return this.update(path, await this.read(path))
     } catch {

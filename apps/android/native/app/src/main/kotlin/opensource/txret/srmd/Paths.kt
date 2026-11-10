@@ -25,8 +25,8 @@ fun pathNames(path: String): List<String>? {
 fun skipPattern(pattern: String): Regex =
     Regex(pattern.split('*').joinToString(".*") { Regex.escape(it) }, RegexOption.IGNORE_CASE)
 
-/** Text decoded from UTF-8 [bytes], without a leading byte order mark, as VS Code's file reads decode it. */
-fun decodeText(bytes: ByteArray): String {
-    val text = bytes.toString(Charsets.UTF_8)
-    return if (text.startsWith('﻿')) text.substring(1) else text
-}
+/**
+ * Text decoded from UTF-8 [bytes]. A byte order mark starting them stays, as the text's first character, so saving the
+ * text writes it back (SYNTAX.md, "Loading and saving").
+ */
+fun decodeText(bytes: ByteArray): String = bytes.toString(Charsets.UTF_8)

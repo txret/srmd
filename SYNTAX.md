@@ -140,6 +140,8 @@ Definitions are placed like link reference definitions: each on its own line, in
 
 The scheduler checks nonzero timestamps for calendar validity: year ≥ 1, month 1–12, valid day for the month, hour 0–23, minute/second 0–59. Invalid dates are preserved exactly; affected cards are excluded from review queues and counted as *later* until corrected. The host may notify the user; other cards remain usable.
 
+A stability and difficulty FSRS cannot use, a difficulty below 1 or a stability below 0.001, as when one of them is omitted, are read as no memory at a review: the card is reviewed as newly learned, and the review writes new values. A last review later than the review counts as made at the review.
+
 ### Manual scheduling
 
 Manual scheduling is editing a definition by hand to schedule its card: its state is temporarily replaced by a **hint**, a positive integer followed by `d`, `w`, or `m`, or the single character `!`. Parsing preserves hints and other fields. After reference matching, the scheduler applies hints in memory and reports a scheduling change.

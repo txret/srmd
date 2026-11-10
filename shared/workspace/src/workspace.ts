@@ -136,11 +136,6 @@ export class Workspace {
     return this.settings.suffixes.some(suffix => path.endsWith(suffix))
   }
 
-  /** Read and parse a note to load it, with srmd's own instance. */
-  async read(path: string): Promise<ParsedNote> {
-    return parse(await this.storage.read(path))
-  }
-
   /**
    * Make ready what rendering a parsed note reads synchronously, before its card renders, such as files a plugin of
    * the instance embeds: nothing here. A host whose plugins need files read first overrides it.
@@ -158,9 +153,18 @@ export class Workspace {
     const rewrites: Rewrite[] = []
     /** Loaded notes that have problems. */
     let problems = 0
+    /**
+     * When the host's event loop last got a turn. Texts a host holds already, such as a cache's, arrive without one,
+     * and parsing every note in a row would freeze the host's screen until the last one.
+     */
+    let paused = Date.now()
     await each_limited(paths, 8, async path => {
       try {
         const text = this.storage.load ? await this.storage.load(path) : await this.storage.read(path)
+        if (Date.now() - paused > 16) {
+          await new Promise(resolve => setTimeout(resolve))
+          paused = Date.now()
+        }
         const note = this.build(path, parse(text), rewrites)
         this.scheduler.update([], [note])
         if (note.problems.length) problems++
@@ -174,8 +178,10 @@ export class Workspace {
 
   /**
    * Apply changes found on disk: remove the notes at the remove paths, and read, parse and insert or replace the notes
-   * at the load paths. Then publish counts, persist resolved hints and announce notes that gained problems. A note that
-   * cannot be read keeps its previous state, or stays out, and is logged. Call within a task.
+   * at the load paths. A loaded note whose file still holds its version is left as it is: the host reported no change of
+   * its text, such as this workspace's own save, which a watcher reports back. Then publish counts, persist resolved
+   * hints and announce notes that gained problems. A note that cannot be read keeps its previous state, or stays out,
+   * and is logged. Call within a task.
    */
   async apply(remove: string[], load: Iterable<string>): Promise<void> {
     /* Reparse the notes to load, then update the tree once; ordinary edits never cause writes, only resolved hints do. */
@@ -185,7 +191,10 @@ export class Workspace {
     let new_problems = 0
     for (const path of load) {
       try {
-        const note = this.build(path, await this.read(path), rewrites)
+        const text = await this.storage.read(path)
+        const loaded = this.state.nodes[path]
+        if (loaded?.type === NOTE && loaded.version === text) continue
+        const note = this.build(path, parse(text), rewrites)
         if (note.problems.length && !this.has_problems(path)) new_problems++
         upsert.push(note)
       } catch (error: unknown) {
@@ -262,38 +271,41 @@ export class Workspace {
   }
 
   /**
-   * Save a rating of a card from next_card(), then commit it to memory and publish counts. Call within a task.
-   * The rating is dropped when the note changed after its card was shown: see RateResult.
+   * Save a rating of a card from next_card(), then rebuild its note from the text saved and publish counts. Call
+   * within a task. The rating is dropped when the note changed after its card was shown: see RateResult.
    */
   async rate(card: PreparedCard, rating: ReviewRating): Promise<RateResult> {
     /*
-     * 1. Read the note again, parsed with the instance it was shown with. Text other than the shown note's means it was
-     *    edited meanwhile: saving the shown parse would overwrite that edit, and the rating may belong to a cloze that
-     *    changed. Reload the note from that text instead; the caller selects again.
-     * 2. Rate a copy of the card and save the note with it. A failure leaves memory as it was, so the card stays due.
-     * 3. Once saved, commit the card and publish the new counts before the next card is selected.
+     * 1. Read the note again. Text other than the shown note's means it was edited meanwhile: saving the shown parse
+     *    would overwrite that edit, and the rating may belong to a cloze that changed. Reload the note from that text
+     *    instead, parsed with the instance the card was shown with; the caller selects again. So does a note whose
+     *    cards are no longer the shown parse's, reloaded meanwhile from another instance's parse.
+     * 2. Rate a copy of the card and save the shown parse with it. A failure leaves memory as it was, so the card
+     *    stays due.
+     * 3. Once saved, rebuild the note from the text written, which holds the rated card, the references as the save
+     *    numbered them and no definition it removed, and publish the counts before the next card is selected.
      */
-    let current: ParsedNote
+    const { path, parsed } = card
+    let text: string
     try {
-      current = parse(await this.storage.read(card.path), card.parsed.md)
+      text = await this.storage.read(path)
     } catch (error: unknown) {
       return { status: 'failed', error }
     }
-    if (current.source !== card.parsed.source || !this.is_current(card.path, current)) {
-      await this.reload(card.path, current)
+    if (text !== parsed.source || !this.is_current(path, parsed)) {
+      await this.reload(path, parse(text, parsed.md))
       return { status: 'changed' }
     }
 
-    const now = new Date()
-    const rated = this.scheduler.rated(card.path, card.ordinal, rating, now)
-    const cards = (this.state.nodes[card.path] as Note).cards.map(other => other.ordinal === rated.ordinal ? rated : other)
+    const rated = this.scheduler.rated(path, card.ordinal, rating)
+    const cards = (this.state.nodes[path] as Note).cards.map(other => other.ordinal === rated.ordinal ? rated : other)
+    const saved = serialize(parsed, cards)
     try {
-      await this.save(card.path, serialize(current, cards))
+      await this.save(path, saved)
     } catch (error: unknown) {
       return { status: 'failed', error }
     }
-    this.scheduler.apply(card.path, rated, now)
-    await this.refresh()
+    await this.reload(path, parse(saved, parsed.md))
     return { status: 'saved' }
   }
 

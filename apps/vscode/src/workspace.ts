@@ -1,6 +1,6 @@
 import * as vscode from 'vscode'
 import { m } from '@srmd/l10n'
-import { FOLDER, NOTE } from '@srmd/scheduler'
+import { FOLDER } from '@srmd/scheduler'
 import { Workspace as NoteWorkspace, error_text, type Storage } from '@srmd/workspace'
 import { find_files, read_file, stat_path, str_to_uri, uri_to_str, write_file } from './filesystem'
 import type { Settings } from './settings'
@@ -21,9 +21,10 @@ function notify(log: vscode.LogOutputChannel, count: number): void {
  * saves notes as tasks (see its run()); this host finds them with VS Code's file search and watcher, shows loading
  * progress, recounts every minute and announces problems with a notification that opens the log.
  *
- * The task queue also orders the watcher after this extension's own writes, so their echoes can be recognized.
  * Loads, workspace switches, watcher batches, review saves and the periodic recount all run as tasks; without the
- * queue they would interleave at their file I/O, mixing two workspaces or applying an older read last.
+ * queue they would interleave at their file I/O, mixing two workspaces or applying an older read last. The watcher
+ * also reports this extension's own writes; the shared workspace leaves a note whose file holds its loaded text as it
+ * is (see its apply()).
  *
  * While srmd is off (Settings.enabled), the workspace holds no folder: nothing is searched, watched,
  * recounted or decorated. Turning it on loads the folder, and turning it off unloads it.
@@ -39,8 +40,6 @@ export class Workspace extends NoteWorkspace implements vscode.Disposable {
   /** Paths reported by the watcher since its last batch; a short debounce groups bursts into one task. */
   private changed = new Set<string>()
   private debounce: ReturnType<typeof setTimeout> | null = null
-  /** Modification time of each file this extension wrote, so the watcher batch skips that echo. */
-  private written = new Map<string, number>()
   /** Pending once-a-minute recount, for due-time and review-day transitions. */
   private timer: ReturnType<typeof setTimeout> | null = null
   private disposed = false
@@ -69,17 +68,6 @@ export class Workspace extends NoteWorkspace implements vscode.Disposable {
       this.state.last_recount = null
       await this.refresh()
     })
-  }
-
-  /**
-   * Write a note, making text the loaded note's version, and remember the file's modification time so the
-   * watcher skips its echo. Call within a task.
-   */
-  override async save(path: string, text: string): Promise<void> {
-    /* Read the committed modification time after writing; the echo's batch runs after this task. */
-    await super.save(path, text)
-    const stat = await stat_path(path)
-    if (stat) this.written.set(path, stat.mtime)
   }
 
   /** Stop watching and recounting; tasks already queued still finish. */
@@ -153,12 +141,11 @@ export class Workspace extends NoteWorkspace implements vscode.Disposable {
     this.watchers = [notes, paths]
   }
 
-  /** Stop the watcher and forget its unprocessed paths and recorded writes. */
+  /** Stop the watcher and forget its unprocessed paths. */
   private unwatch(): void {
     if (this.debounce) clearTimeout(this.debounce)
     this.debounce = null
     this.changed.clear()
-    this.written.clear()
     for (const watcher of this.watchers) watcher.dispose()
     this.watchers = []
   }
@@ -182,10 +169,9 @@ export class Workspace extends NoteWorkspace implements vscode.Disposable {
      *    - missing: remove its note, or every note below a deleted folder;
      *    - folder: list its notes afresh, since moves and renames report only the folder. Loaded notes below
      *      it that the listing lacks are removed, as is a note that a folder of the same name replaced;
-     *    - file: remove the notes of a folder it replaced, then load it if it is a note, unless it is still
-     *      at the version this extension wrote. Other files are ignored.
-     * 3. Apply the result (see apply()): reparse the collected notes, update the tree, publish counts, persist
-     *    resolved hints, then report notes that gained problems.
+     *    - file: remove the notes of a folder it replaced, then load it if it is a note. Other files are ignored.
+     * 3. Apply the result (see apply()): reparse the collected notes whose text changed, update the tree, publish
+     *    counts, persist resolved hints, then report notes that gained problems.
      * Only a confirmed absence removes a note: any other failure keeps its previous state and is logged,
      * and the next reported change tries again.
      */
@@ -194,19 +180,16 @@ export class Workspace extends NoteWorkspace implements vscode.Disposable {
     const remove: string[] = []
     const load = new Set<string>()
     for (const path of paths) {
-      const written = this.written.get(path)
-      this.written.delete(path)
       try {
         const stat = await stat_path(path)
-        const node = this.state.nodes[path]
         if (!stat) remove.push(...this.scheduler.notes_at(path))
         else if (stat.folder) {
           const found = new Set(await find_files(str_to_uri(path), this.pattern))
           remove.push(...this.scheduler.notes_at(path).filter(note => !found.has(note)))
           for (const note of found) load.add(note)
         } else {
-          if (node?.type === FOLDER) remove.push(...this.scheduler.notes_at(path))
-          if (this.is_note(path) && (node?.type !== NOTE || stat.mtime !== written)) load.add(path)
+          if (this.state.nodes[path]?.type === FOLDER) remove.push(...this.scheduler.notes_at(path))
+          if (this.is_note(path)) load.add(path)
         }
       } catch (error: unknown) {
         this.channel.error(m.workspace_note_kept({ path, detail: error_text(error) }))

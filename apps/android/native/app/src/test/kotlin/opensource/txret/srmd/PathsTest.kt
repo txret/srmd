@@ -37,11 +37,11 @@ class PathsTest {
         assertTrue(skipPattern("a(b)+c").matches("a(b)+c"))
     }
 
-    /** Texts decode as UTF-8 without a byte order mark, as VS Code reads them. */
+    /** Texts decode as UTF-8, a byte order mark kept as the first character, so a save writes it back. */
     @Test
-    fun textsDecodeWithoutAByteOrderMark() {
+    fun textsDecodeKeepingAByteOrderMark() {
         assertEquals("Q:: svar å", decodeText("Q:: svar å".toByteArray()))
-        assertEquals("Q:: a", decodeText(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + "Q:: a".toByteArray()))
+        assertEquals("\uFEFFQ:: a", decodeText(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()) + "Q:: a".toByteArray()))
         assertEquals("", decodeText(ByteArray(0)))
     }
 }

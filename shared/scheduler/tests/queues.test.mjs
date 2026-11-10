@@ -1,7 +1,7 @@
 // Queues, counts and reviews (ARCHITECTURE.md, "Queues and review days"); the rollover is 04:00.
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { Scheduler, get_counts, serialize_date } from '../src/index.ts'
+import { Rating, Scheduler, get_counts, serialize_date } from '../src/index.ts'
 import { parse, serialize } from '../../parser/src/index.ts'
 import * as tests from './queues.test.mjs'
 
@@ -180,6 +180,48 @@ export function test_rated_leaves_state_unchanged_until_apply_commits(t) {
   scheduler.apply('note.sr.md', card)
   assert.equal(note.cards[0], card)
   assert.deepEqual(scheduler.next_card(''), [null, null])
+}
+
+/**
+ * A definition written by hand can hold what FSRS rejects. A stability without a difficulty is no memory: the card
+ * previews and rates as a card without any, here like one whose definition ends after its last review. A last review
+ * still to come counts as now: the card previews as one reviewed this moment.
+ */
+export function test_a_card_with_unusable_memory_or_a_coming_last_review_is_still_reviewed(t) {
+  t.mock.timers.enable({ apis: ['Date'], now: new Date('2026-11-09T12:00:00+01:00') })
+  const scheduler = make_scheduler()
+  const parsed = parse(`
+A:: a[:1]
+
+B:: b[:2]
+
+C:: c[:3]
+
+D:: d[:4]
+
+[:1]: k 20261001040000 7 20260924120000 8.5
+[:2]: k 20261001040000 7 20260924120000
+[:3]: k 20261001040000 7 20270101120000 8.5 5 0 3 0
+[:4]: k 20261001040000 7 20261109120000 8.5 5 0 3 0
+`.slice(1))
+  scheduler.update([], [scheduler.create_note('note.sr.md', parsed.scheduling).note])
+  const without_memory = {
+    again: { unit: 'minutes', count: 10 }, hard: { unit: 'days', count: 1 },
+    good: { unit: 'days', count: 2 }, easy: { unit: 'days', count: 8 }
+  }
+  assert.deepEqual(scheduler.peek('note.sr.md', 1), without_memory)
+  assert.deepEqual(scheduler.peek('note.sr.md', 2), without_memory)
+  assert.deepEqual(scheduler.rated('note.sr.md', 1, Rating.Good), {
+    ref: 1, ordinal: 1, state: 'k', due: '20261111120000', scheduled_days: 2, last_review: '20261109120000',
+    stability: 2.3065, difficulty: 2.11810397, learning_steps: 0, reps: 1, lapses: 0
+  })
+
+  const reviewed_now = scheduler.peek('note.sr.md', 4)
+  assert.deepEqual(scheduler.peek('note.sr.md', 3), reviewed_now)
+  assert.deepEqual(reviewed_now, {
+    again: { unit: 'minutes', count: 10 }, hard: { unit: 'days', count: 9 },
+    good: { unit: 'days', count: 10 }, easy: { unit: 'days', count: 13 }
+  })
 }
 
 /**

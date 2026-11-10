@@ -158,7 +158,7 @@ repository's snake_case.
 | `ResourceHandler.kt` | The page's origin: the web app from the APK's assets under `/app/`, the notes folder's files under `/notes/`.         |
 | `SettingsStore.kt`   | The notes folder's URI and the web app's settings as JSON, in `SharedPreferences`.                                    |
 | `Messages.kt`        | The message format: requests decoded, replies, errors and events encoded.                                             |
-| `Paths.kt`           | Workspace-relative paths checked against leaving the folder, skip patterns, UTF-8 decoding without a byte order mark. |
+| `Paths.kt`           | Workspace-relative paths checked against leaving the folder, skip patterns, UTF-8 decoding keeping a byte order mark. |
 
 `MainActivity`:
 
@@ -370,7 +370,9 @@ running as code. Its script elements do not run, as the views insert markup with
 inline script, frames or objects. As the notes folder shares the page's origin and so the bridge, the shell lets the
 WebView load the web app's page alone (`isAppPage()`): `shouldOverrideUrlLoading()` cancels a navigation to anything
 else of the origin, such as a note's meta refresh pointing at an HTML file of the folder, and `shouldInterceptRequest()`
-answers a page load it was not offered with an empty page, so no file of the folder ever becomes the page.
+answers a page load it was not offered with an empty page, so no file of the folder ever becomes the page. An address
+of another origin opens outside the app only with a scheme the app's own links use (`opensOutside()`), so a note cannot
+send a `file:` or other address to other apps.
 
 ## Data flow
 
@@ -409,7 +411,9 @@ saved with, while notes load with srmd's own (ARCHITECTURE.md, "Workspace"): Foa
 without links for names lacking a scheme, with srmd's plugin, recording positions, as its extension. Foam
 knows the folder's files by name; Foam's plugins render synchronously, so before a file renders, `prepare()` reads
 and parses the files its wiki links and embeds point at, three levels of embeds deep, for their titles, sections and
-blocks, and keeps their texts for Foam's embed plugin, which reads them with `readFileSync()` (`foam_fs.ts`). The
+blocks, and keeps their texts for Foam's embed plugin, which reads them with `readFileSync()` (`foam_fs.ts`). A text
+kept is used while it is the file's current one, as the app last read or wrote it, and a file without wiki links is not
+parsed at all. The
 library's workspace calls it before a card renders; view mode before its second render. Embedded files render through
 an instance that marks the parse embedded, so their clozes, a note's or other Markdown's, have ordinal 0 and no card.
 Absolute paths, which Foam writes for wiki links and image embeds, go below `/notes/`, where the shell serves

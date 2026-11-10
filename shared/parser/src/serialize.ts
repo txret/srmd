@@ -28,7 +28,8 @@ export function serialize(parsed: ParsedNote, scheduling: readonly Scheduling[])
    *    an ending all get references. Elsewhere select only the cards owning a reference, which the author wrote
    *    for them. Number the selected cards from 1 in card order.
    * 2. At each selected position, write its cards' references innermost first over the first reference standing
-   *    there, or at the position's insertion. Remove every other reference.
+   *    there, or at the position's insertion, new reference lines after new inline references. Remove every other
+   *    reference.
    * 3. Rewrite the definitions of selected cards with data or a definition in place, except those in the last block
    *    of root-level definitions: that block is rewritten sorted, with definitions added for cards with data that
    *    have none. Remove all other definitions. Without root-level definitions, a new block goes at the end.
@@ -47,6 +48,11 @@ export function serialize(parsed: ParsedNote, scheduling: readonly Scheduling[])
   /** The references rewritten at the selected positions, and the lines they keep. */
   const kept = new Set<CardReference>()
   const kept_lines = new Set<number>()
+  /**
+   * New reference lines, added after every new inline reference. Both can go at one offset, where a block cloze's
+   * last block ends in an inline cloze: the inline reference ends its text there, then the line starts.
+   */
+  const new_lines: TextEdit[] = []
   for (const cards of positions) {
     const run = cards.map(card => `[:${ref_of.get(card)}]`).join('')
     // Parsing gave a position's references to its cards innermost first, so its first card owns the first one.
@@ -58,11 +64,12 @@ export function serialize(parsed: ParsedNote, scheduling: readonly Scheduling[])
       continue
     }
     const insertion = cards[cards.length - 1].insertion!
-    const before = insertion.kind === 'line'
-      ? '\n' + (insertion.blank ? insertion.prefix.trimEnd() + '\n' : '') + insertion.prefix
-      : insertion.space ? ' ' : ''
-    edits.push({ start: insertion.offset, end: insertion.offset, text: before + run })
+    if (insertion.kind === 'line') {
+      const before = '\n' + (insertion.blank ? insertion.prefix.trimEnd() + '\n' : '') + insertion.prefix
+      new_lines.push({ start: insertion.offset, end: insertion.offset, text: before + run })
+    } else edits.push({ start: insertion.offset, end: insertion.offset, text: (insertion.space ? ' ' : '') + run })
   }
+  edits.push(...new_lines)
   for (const reference of references) {
     if (!kept.has(reference)) edits.push(removal(text, reference, kept_lines))
   }
@@ -180,18 +187,33 @@ function removal(text: string, token: SourceRange, kept_lines: Set<number>): Tex
 /**
  * Remove the lines holding start to end, with their line ending. When the line above is blank (whitespace and
  * quote markers only) and so is the line below or the end of the note, the blank line above goes too, so the
- * blocks around keep a single blank line between them.
+ * blocks around keep a single blank line between them. When the lines above and below both hold text, a blank line
+ * stays in place of the removed ones, so the text below does not join the block above, as a paragraph would.
+ * @param start - Where what is removed starts on its line, after nothing but whitespace and quote markers.
  */
 function line_removal(text: string, start: number, end: number): TextEdit {
-  /* Widen the range to whole lines, then to the blank line above when the removal would leave two. */
-  let from = line_start(text, start)
+  /*
+   * 1. Widen the range to whole lines, and look at the lines around them.
+   * 2. Blank around: take the blank line above too, which would otherwise be a second one.
+   * 3. Text around: keep the first line's quote markers and the last line's ending, as the blank line.
+   */
+  const from = line_start(text, start)
   const line_end = text.indexOf('\n', end)
   const to = line_end < 0 ? text.length : line_end + 1
   const blank = (line: string): boolean => !/[^ \t>\n]/.test(line)
+  /** Where the line above starts; -1 at the start of the note. */
   const above = from > 0 ? line_start(text, from - 1) : -1
   const below_end = text.indexOf('\n', to)
+  /** The line below; empty at the end of the note. */
   const below = text.slice(to, below_end < 0 ? text.length : below_end)
-  if (above >= 0 && blank(text.slice(above, from)) && (to === text.length || blank(below))) from = above
+
+  // Steps 2 and 3.
+  if (above >= 0 && blank(text.slice(above, from)) && blank(below)) return { start: above, end: to, text: '' }
+  if (above >= 0 && !blank(text.slice(above, from)) && !blank(below)) {
+    let content = start
+    while (text[content - 1] === ' ' || text[content - 1] === '\t') content--
+    return { start: content, end: to - 1, text: '' }
+  }
   return { start: from, end: to, text: '' }
 }
 

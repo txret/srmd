@@ -191,7 +191,8 @@ export class Scheduler {
 
   /**
    * The card of a loaded card ordinal as a rating would leave it, without changing state.
-   * Hosts save the note with it and commit it with apply() only once the save succeeded.
+   * Hosts save the note with it, and only once the save succeeded commit it: the shared workspace by rebuilding the
+   * note from the saved text, a host keeping no files with apply().
    */
   rated(path: string, ordinal: number, rating: ReviewRating, date: Date = new Date()): Card {
     /* Copy the card, then resolve a fixed-interval choice or call FSRS on the copy. */
@@ -203,7 +204,7 @@ export class Scheduler {
       card.reps++
       set_due_in(card, days, date, this.state.config.rollover)
     } else {
-      apply_fsrs(card, this.fsrs.next(to_fsrs(card), date, rating).card)
+      apply_fsrs(card, this.fsrs.next(to_fsrs(card, date), date, rating).card)
     }
     return card
   }
@@ -225,7 +226,7 @@ export class Scheduler {
   peek(path: string, ordinal: number, date: Date = new Date()): ReviewIntervals {
     /* Decode once, then calculate all four grades at the same instant. */
     const note = this.state.nodes[path] as Note
-    const card = to_fsrs(note.cards[ordinal - 1])
+    const card = to_fsrs(note.cards[ordinal - 1], date)
     /** Measure one prospective grade without assigning its result back to the live card. */
     const due = (grade: Grade): Interval => {
       /* Prefer full review days, otherwise express the short learning interval in minutes. */
