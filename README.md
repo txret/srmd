@@ -129,11 +129,30 @@ the emulator stays running. For Kotlin breakpoints, open `apps/android/native/` 
 
 ### Performance
 
-There is one important hot path, on startup, regardless of platform, all relevant files will have to be read and parsed to establish scheduling queues - this needs to be fast in case of a large collection of notes.
+There is one important hot path, startup: find all files in scope, read from disk, parse and build scheduling queues. Remaining code paths are triggered on individual note basis through user interaction so performance there is generally not a concern.
 
 ### Dependencies
 
 External dependencies use open-ended ranges (`>=` the version last tested), and `package-lock.json` pins what is installed. Update them deliberately and rerun all tests. The one exception is `@types/vscode`, which matches the minimum VS Code version in `engines.vscode`, so the typecheck rejects APIs that version lacks.
+
+Foam is pinned separately by its Git submodule commit. To update it to the latest published stable Foam release:
+
+```sh
+npm run update:foam
+```
+
+The command uses the tag of Foam's latest GitHub release (`vscode@...`), which includes both its preview pipeline and core library. To select a particular release or an inter-release fix, pass its tag or full commit SHA:
+
+```sh
+npm run update:foam -- vscode@0.48.0
+npm run update:foam -- 7a2e6322952f4fb2640113cc93f7af8f334bc67c
+```
+
+Both forms refuse uncommitted changes inside `foam/`, check out the selected commit, run `npm install`, type-check all components and run all tests. A failure stops the command and leaves the selected checkout available for investigation. After success, review `git diff --submodule=log -- foam package-lock.json` and commit the submodule pointer and any lockfile changes together. Normal builds keep using the pinned commit.
+
+An explicit commit is resolved locally first; only a missing commit is fetched from `origin`. For a fix awaiting upstream merge, create a branch inside `foam/` (`git -C foam switch -c srmd-patch`), commit the patch there, and pass the full SHA printed by `git -C foam rev-parse HEAD` to `npm run update:foam -- <sha>`. Selecting that commit needs no Git fetch or release lookup. The updater detaches the checkout but retains your patch branch.
+
+You can build and ship binaries from that local commit. To let fresh clones and CI reproduce the build, publish the patch branch to a reachable fork and set Foam's URL in `.gitmodules` to that fork, committing the URL change along with the submodule pin. The parent repository stores only the commit ID, not Foam's commit objects. Keep upstream release tags available in the fork for the default release update command.
 
 ### Translations
 

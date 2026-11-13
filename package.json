@@ -19,6 +19,7 @@
     "build:android": "npm run -w @srmd/app-android build",
     "apk": "npm run -w @srmd/app-android apk",
     "debug:android": "npm run -w @srmd/app-android debug",
+    "update:foam": "node apps/android/scripts/update_foam.mjs",
     "typecheck": "npm run -w @srmd/shared typecheck && npm run -w @srmd/app-vscode typecheck && npm run -w @srmd/app-android typecheck",
     "compile:l10n": "node shared/l10n/scripts/compile.mjs",
     "clean": "npm -ws --if-present run clean",

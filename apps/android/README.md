@@ -2,9 +2,9 @@
 
 Read, review and edit your srmd notes on an Android phone or tablet. The app works on the notes folder you already have,
 synced to the device by your own tool, such as Syncthing or Git: there is no database or srmd service, and the app works
-offline. It has no network access at all and asks for no permissions; it reads only the folder you choose. Notes are
-the same files as in VS Code, with clozes and scheduling written as [SYNTAX.md](../../SYNTAX.md) describes, so a review
-on the phone continues where the last one on the computer stopped, and the other way round.
+offline. It has no network access and asks for no permissions other than folder access; it reads only the folder you
+choose. Notes are the same files as in VS Code, with clozes and scheduling written as [SYNTAX.md](../../SYNTAX.md)
+describes, so a review on the phone continues where the last one on the computer stopped, and the other way round.
 
 ## First start
 

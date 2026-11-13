@@ -15,6 +15,21 @@ android {
         versionName = "0.1.0"
     }
 
+    /*
+     * The debug keystore named in ~/.gradle/gradle.properties (DEBUG_STORE_FILE, DEBUG_STORE_PASS, DEBUG_KEY_ALIAS,
+     * DEBUG_KEY_PASS), so every machine signs debug builds with the same key and an installed APK can be updated.
+     * Without DEBUG_STORE_FILE, Android's default debug keystore signs them.
+     */
+    val debug_store = findProperty("DEBUG_STORE_FILE") as String?
+    if (debug_store != null) {
+        signingConfigs.getByName("debug") {
+            storeFile = file(debug_store)
+            storePassword = findProperty("DEBUG_STORE_PASS") as String?
+            keyAlias = findProperty("DEBUG_KEY_ALIAS") as String?
+            keyPassword = findProperty("DEBUG_KEY_PASS") as String?
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
