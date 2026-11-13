@@ -15,13 +15,14 @@ The portable code belongs in `shared/`. Platform hosts should remain small adapt
 - `apps/vscode/`: VS Code filesystem integration, file search and watching around the shared workspace, note tree, review tab (webview host) and the markdown-it it composes of every extension's plugins, srmd's markdown-it plugin, extension manifest, and syntax-highlighting grammar.
 - `apps/android/`: the Android app. `src/` is its web app, TypeScript on the shared components (views, drawer, review, CodeMirror editor, settings) and on Foam's preview pipeline (`foam.ts`); `native/` its Kotlin shell (one WebView, the Storage Access Framework, the message bridge). See `apps/android/ARCHITECTURE.md`.
 - `foam/`: the Foam repository as a git submodule, pinned to a commit; the Android app bundles foam-core and Foam's preview plugins from it. Run `git submodule update --init` after cloning.
+- `scripts/`: repository-wide tools, including updating the Foam submodule and compiling its core library. Host-specific build, packaging and debug scripts stay with their host. Tests of root scripts live in root `tests/` and run with `npm run test:scripts` and root `npm test`.
 
-The applications are the VS Code extension and the Android app, which provides reading, review and editing modes. A browser application is deferred; it could reuse the Android web app with a different `Storage`. An iOS host is also future work. Notes sync using the user's existing approach, such as Git or Syncthing, rather than an srmd service.
+The applications are the VS Code extension and the Android app, which provides reading, review and editing modes. A browser application is deferred; it could reuse the Android web app with a different `Storage`. An iOS host could also be envisaged in the future. Notes sync using the user's existing approach, such as Git or Syncthing, rather than an srmd service.
 
 ## Development
 
 - Prefer classic JS/TS types and syntax like `[]` arrays and `{}` dicts, avoid things like `Array<T>`/`Map<T>` unless there is an actual point (like guaranteed insertion order).
-- Prefer snake_case, with PascalCase for types.
+- Prefer snake_case, with PascalCase for types/classes.
 - JavaScript/TypeScript has no end-of-line semicolons.
 - Prefer explicit types and small pure functions.
 - Keep most logic in shared TypeScript so hosts primarily provide filesystem access and a review surface.

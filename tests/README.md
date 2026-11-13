@@ -5,7 +5,7 @@ Install dependencies once with `npm install` at the repository root. Use Node
 
 | Directory           | What runs                                                                                |
 |---------------------|------------------------------------------------------------------------------------------|
-| Repository root     | All shared components, then VS Code and Android                                          |
+| Repository root     | Repository scripts, all shared components, then VS Code and Android                      |
 | `shared/`           | Parser, scheduler, reviewer, UI, workspace and messages                                  |
 | `shared/scheduler/` | Manual hints, FSRS, review days, queues and folder counts                                |
 | `shared/reviewer/`  | Review preparation and load/review/save round trips                                      |
@@ -24,6 +24,11 @@ to `Europe/Stockholm` for scheduling and daylight-saving fixtures.
 
 Tests live in `*.test.mjs` files under the component's `tests/` directory, one
 file per topic. Import the code being tested directly.
+
+Tests of root `scripts/` live in this root `tests/` directory. Run them with
+`npm run test:scripts`; root `npm test` runs them before the workspace tests.
+The Foam updater tests use temporary local Git repositories and mocked release
+metadata, so they neither access the network nor change the repository's Foam pin.
 
 Write each test as an exported function named `test_` and the behavior it checks,
 with a JSDoc stating that behavior. A test is complete in itself, so it can be

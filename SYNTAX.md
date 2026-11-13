@@ -41,11 +41,11 @@ An explicit closer is `<` followed by at least two marker symbols, with any semi
 
 An opener at a block's end (implicitly including paragraphs consisting only of the opener), excluding whitespace, opens a **block cloze**. Otherwise, it opens an **inline cloze**.
 
-| Cloze                    | End                                                                       |
-|--------------------------|---------------------------------------------------------------------------|
+| Cloze                    | End                                                                        |
+|--------------------------|----------------------------------------------------------------------------|
 | Implicit inline          | Before the next hard line break or the end of its paragraph or table cell. |
-| Implicit block           | After the next Markdown block.                                            |
-| Explicit inline or block | At its closing marker.                                                    |
+| Implicit block           | After the next Markdown block.                                             |
+| Explicit inline or block | At its closing marker.                                                     |
 
 Inline clozes contain no blocks; block clozes contain one or more. Soft line breaks do not end inline clozes. These are syntactical ends, which card references follow. An inline cloze opened inside an inline element, such as emphasis or a link's text, renders only up to that element's end, since HTML cannot straddle it, but still ends syntactically as above: its reference goes there, and a closing marker after the element still closes it. Writing such clozes is discouraged.
 

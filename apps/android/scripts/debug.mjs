@@ -66,7 +66,7 @@ async function start_emulator() {
 /** Build the web assets and APK with the selected SDK, showing the build output and reporting failure. */
 async function build() {
   /* Use the same npm build as packaging, so the installed code and local source maps agree. */
-  const child = spawn('npm', ['run', 'apk'], { cwd: app_dir, env, stdio: 'inherit' })
+  const child = spawn('npm', ['run', 'package:android'], { cwd: app_dir, env, stdio: 'inherit' })
   await new Promise((resolve, reject) => {
     child.once('error', reject)
     child.once('exit', code => code === 0 ? resolve() : reject(new Error(`Android build exited with ${code}`)))

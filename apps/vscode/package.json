@@ -1,7 +1,7 @@
 {
   "name": "@srmd/app-vscode",
   "displayName": "srmd",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "publisher": "srmd",
   "license": "MIT",
   "repository": {

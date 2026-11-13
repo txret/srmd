@@ -1,4 +1,4 @@
-// Exercise the updater against a real local Git remote and submodule without changing the repository's Foam pin.
+// Exercise the repository updater against a local Git remote and submodule without changing the real Foam pin.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'

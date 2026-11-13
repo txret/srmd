@@ -1,7 +1,7 @@
 {
   "name": "@srmd/app-android",
   "displayName": "srmd",
-  "version": "0.1.0",
+  "version": "0.5.0",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -18,11 +18,11 @@
     "test": "node --import tsx --import ../../tests/setup.mjs --test",
     "pretypecheck": "npm run compile:l10n && npm run build:foam",
     "typecheck": "tsc -p tsconfig.json --noEmit --pretty false",
-    "apk": "npm run build && cd native && ./gradlew assembleDebug",
+    "package": "npm run build && cd native && ./gradlew assembleDebug",
     "debug": "node scripts/debug.mjs",
     "test:native": "cd native && ./gradlew testDebugUnitTest",
     "clean": "node -e \"require('node:fs').rmSync('native/app/src/main/assets/web', { recursive: true, force: true })\"",
-    "build:foam": "node scripts/build_foam.mjs"
+    "build:foam": "node ../../scripts/build_foam.mjs"
   },
   "dependencies": {
     "@codemirror/commands": ">=6.11.1",

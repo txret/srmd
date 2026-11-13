@@ -461,7 +461,7 @@ apps/android/
 ```
 
 - `npm run build` in `apps/android/` compiles messages, typechecks and bundles the web app into
-  `native/app/src/main/assets/web/`. `npm run apk` builds it, then the debug APK with Gradle, into
+  `native/app/src/main/assets/web/`. `npm run package:android` builds it, then the debug APK with Gradle, into
   `native/app/build/outputs/apk/debug/`. Gradle needs a JDK 17 or later with `javac` (`JAVA_HOME`) and the Android
   SDK (`ANDROID_HOME`, or `sdk.dir` in `native/local.properties`); the Android Gradle plugin installs the SDK platform
   and build tools it lacks.

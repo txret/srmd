@@ -69,6 +69,8 @@ A browser application is tentatively planned. An iOS app will require someone el
 
 An npm workspaces monorepo in TypeScript: the portable components in `shared/`, the VS Code and Android hosts in `apps/`, and Foam's repository as a Git submodule in `foam/`. Hosts stay thin; they provide file access, configuration, resource URLs and a review surface, and the shared components do the rest. [ARCHITECTURE.md](ARCHITECTURE.md#code-base) lists the components.
 
+Repository-wide tools live in root `scripts/`, with their tests in root `tests/`. Component-specific build, packaging and debug scripts stay with the component that uses them.
+
 ## Development
 
 Install Node 20.19 or later. Clone with the Foam submodule, or fetch it in a clone made without, then install dependencies once at the repository root:
@@ -80,11 +82,13 @@ npm install
 
 | Command                                      | Effect                                                                                                       |
 |----------------------------------------------|--------------------------------------------------------------------------------------------------------------|
-| `npm test`                                   | All tests: the shared components, then both hosts                                                            |
+| `npm test`                                   | All tests: repository scripts, shared components, then both hosts                                           |
+| `npm run test:scripts`                       | Repository tooling tests, including Foam updates against temporary Git repositories                         |
 | `npm run test:<name>`, such as `test:parser` | One component's tests: `parser`, `scheduler`, `reviewer`, `ui`, `workspace`, `shared`, `vscode` or `android` |
 | `npm run typecheck`                          | Type-check every component and both hosts                                                                    |
 | `npm run build`                              | Bundle the extension into `apps/vscode/dist/` and the Android web app into its assets                        |
-| `npm run apk`                                | Build the Android app's debug APK (see below)                                                                |
+| `npm run build:foam`                         | Compile the Foam core library used by Android builds and tests                                               |
+| `npm run package:android`                                | Build the Android app's debug APK (see below)                                                                |
 | `npm run parse -- path/to/note.sr.md`        | Inspect how a note parses, renders and would be saved, without changing it                                   |
 
 Tests use Node's test runner and import TypeScript sources directly through `tsx`. The VS Code tests run the real extension and webview bundles against a mocked `vscode` module, so they need no VS Code installation. Running `npm test` in a component's directory runs only its tests. See [tests/README.md](tests/README.md) for filtering and conventions.
@@ -94,20 +98,20 @@ To try changes in VS Code, build, then start an Extension Development Host with 
 ### Building the extension
 
 ```sh
-npm run build:package
+npm run package:vscode
 code --install-extension apps/vscode/srmd.vsix
 ```
 
-`build:package` builds the extension and packages it with the locally installed `vsce` into `apps/vscode/srmd.vsix`. The extension needs VS Code 1.85 or later.
+`package:vscode` builds the extension and packages it with the locally installed `vsce` into `apps/vscode/srmd.vsix`. The extension needs VS Code 1.85 or later.
 
 ### Building the Android app
 
 ```sh
-JAVA_HOME=/path/to/jdk npm run apk
+JAVA_HOME=/path/to/jdk npm run package:android
 adb install apps/android/native/app/build/outputs/apk/debug/app-debug.apk
 ```
 
-`apk` bundles the web app into the Gradle project's assets, then builds the debug APK with Gradle. It needs a JDK 17 or later, one with `javac`, and the Android SDK, found through `ANDROID_HOME` or `sdk.dir` in `apps/android/native/local.properties`; the Android Gradle plugin installs the SDK platform and build tools it lacks. The app needs Android 10 or later. To try the web app without a device, `node apps/android/tests/browser.mjs <notes folder>` serves it with a stand-in for the Android shell, for a desktop browser's device emulation.
+`package:android` bundles the web app into the Gradle project's assets, then builds the debug APK with Gradle. It needs a JDK 17 or later, one with `javac`, and the Android SDK, found through `ANDROID_HOME` or `sdk.dir` in `apps/android/native/local.properties`; the Android Gradle plugin installs the SDK platform and build tools it lacks. The app needs Android 10 or later. To try the web app without a device, `node apps/android/tests/browser.mjs <notes folder>` serves it with a stand-in for the Android shell, for a desktop browser's device emulation.
 
 ### Debugging the Android app
 
@@ -141,7 +145,7 @@ Foam is pinned separately by its Git submodule commit. To update it to the lates
 npm run update:foam
 ```
 
-The command uses the tag of Foam's latest GitHub release (`vscode@...`), which includes both its preview pipeline and core library. To select a particular release or an inter-release fix, pass its tag or full commit SHA:
+The root script `scripts/update_foam.mjs` uses the tag of Foam's latest GitHub release (`vscode@...`), which includes both its preview pipeline and core library. To select a particular release or an inter-release fix, pass its tag or full commit SHA:
 
 ```sh
 npm run update:foam -- vscode@0.48.0

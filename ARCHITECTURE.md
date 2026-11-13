@@ -16,6 +16,8 @@
 | `shared/workspace/`   | Loading, reviewing and saving a folder's notes over a host's file access; the settings hosts share; a tree of all files.                 |
 | `apps/vscode/`        | VS Code settings, file search and watching, review tab, tree, decorations, and Markdown preview.                                         |
 | `apps/android/`       | Android app: a Kotlin shell around one WebView running the web app; see [apps/android/ARCHITECTURE.md](apps/android/ARCHITECTURE.md).    |
+| `scripts/`            | Repository tooling: updating the Foam submodule and compiling its core library.                                                          |
+| `tests/`              | Repository tooling tests, shared test setup and test conventions.                                                                         |
 | `foam/`               | The Foam repository as a git submodule, pinned to a commit; the Android app bundles parts of it (see "Foam in the Android app").         |
 
 ## Parser
@@ -280,5 +282,5 @@ Android's web app selects the device language the shell reports at start; the sh
 - VS Code's inherited-decoration indicator can replace explicit folder badges/tooltips when providers such as Git propagate decorations. The stable API cannot force srmd's aggregate badge to win; enabling its own propagation also produces the generic indicator. The Flashcards view retains complete counts.
 - Any note edit while a card is shown invalidates its rating, even if the cloze is unchanged. Reconciliation is deferred.
 - Whether srmd's markers apply inside another plugin's syntax, such as math, depends on the order of the plugins' rules, and syntax found after inline parsing, such as Foam's wiki links, does not stop them (see "Foam's syntax"). Reviews show and save the cards of their own parse; in VS Code's preview the cards come from srmd's own parse, by ordinal, so a cloze the preview's parse misses or adds shifts the scheduling shown on later ones.
-- A plugin that replaces markdown-it's block tokenize loop or inline state after srmd's in the reviews' instance would leave its parses without positions.
+- Plugins may add or replace individual block rules after srmd; new rule arrays are wrapped when used. Replacing `md.block.tokenize` or `md.inline.State` after srmd without preserving its wrappers would loses positions required for saving scheduling.
 - In VS Code reviews, Foam resolves an embed of the note's own section, `![[#Section]]`, against the active text editor's file, as its preview does, not against the note reviewed.

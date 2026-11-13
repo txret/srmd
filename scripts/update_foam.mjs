@@ -1,4 +1,4 @@
-// Update the Foam sources Android bundles; the root npm command also refreshes dependencies and validates srmd.
+// Update the repository's Foam submodule, refresh dependencies and validate srmd.
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
@@ -83,7 +83,7 @@ async function main() {
   if (args.length > 1) throw new Error('Usage: npm run update:foam -- [release-tag-or-full-commit-sha]')
   const npm_cli = process.env.npm_execpath
   if (!npm_cli) throw new Error('Run this script with npm run update:foam')
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
   const { previous, commit, target } = await update_foam(root, args[0])
   console.log(`Foam: ${previous} -> ${commit} (${target})`)
 
