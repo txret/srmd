@@ -13,6 +13,7 @@
   },
   "scripts": {
     "compile:l10n": "node ../../shared/l10n/scripts/compile.mjs",
+    "prebuild": "node ../../scripts/sync_versions.mjs",
     "build": "npm run compile:l10n && npm run build:foam && tsc -p tsconfig.json --noEmit && rollup -c",
     "pretest": "npm run build",
     "test": "node --import tsx --import ../../tests/setup.mjs --test",

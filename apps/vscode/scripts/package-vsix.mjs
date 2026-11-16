@@ -37,6 +37,7 @@ const main = async () => {
     // VS Code extension manifests require an unscoped name.
     // We stage a packaging-only manifest to avoid breaking npm workspaces.
     manifest.name = stagedName
+    manifest.version = JSON.parse(await fs.readFile(resolve(extRoot, '../../package.json'), 'utf8')).version
     manifest.private = false
     manifest.files = ['LICENSE', 'README.md', 'package.nls*.json', 'dist/**/*.js', 'dist/**/*.js.map', 'dist/media/*.css', 'resources/**', 'syntax/**']
 

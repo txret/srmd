@@ -2,6 +2,7 @@
 // mock shell (mock_native.js), driven by touch as on a phone. Skipped when no Chromium is found (see find_chromium()).
 import assert from 'node:assert/strict'
 import { after, test } from 'node:test'
+import package_info from '../../../package.json' with { type: 'json' }
 import { find_chromium, launch, start_server } from './browser.mjs'
 import * as tests from './app.test.mjs'
 
@@ -379,7 +380,7 @@ export async function test_swiping_up_from_the_handle_searches_the_shown_file(t)
 
 /**
  * Settings are stored through the shell as they change; new note suffixes load the notes again. Back closes the
- * settings page.
+ * settings page, whose heading includes the repository version bundled with the app.
  */
 export async function test_changed_settings_are_stored_and_reload_the_notes(t) {
   const page = await open_app(t, { 'a.sr.md': 'Q:: one\n', 'b.cards.md': 'Q:: two\n' })
@@ -388,6 +389,9 @@ export async function test_changed_settings_are_stored_and_reload_the_notes(t) {
   await page.tap('#open-settings')
   await page.wait_for(`!document.getElementById('settings').hidden`)
   assert.equal(await layers(page), 'settings')
+
+  assert.equal(await page.evaluate(`document.querySelector('#settings h1').outerHTML`),
+    `<h1>Settings <span class="version">${package_info.version}</span></h1>`)
 
   await page.evaluate(`(() => {
     const input = document.querySelector('#settings input[name="suffixes"]')

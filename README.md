@@ -135,6 +135,12 @@ the emulator stays running. For Kotlin breakpoints, open `apps/android/native/` 
 
 There is one important hot path, startup: find all files in scope, read from disk, parse and build scheduling queues. Remaining code paths are triggered on individual note basis through user interaction so performance there is generally not a concern.
 
+### App versions
+
+The root `package.json` sets the version of both apps. Change that version once; app builds synchronize the VS Code and Android package manifests and their lockfile entries automatically. `npm run sync:version` performs just that synchronization. VSIX packaging and Android's native build read the root version directly, and Android shows the bundled version beside the Settings title.
+
+Android derives its numeric `versionCode` as `major * 1000000 + minor * 1000 + patch` (minor and patch must be below 1000). Version suffixes do not change this code; increment the numeric version for each published Android update.
+
 ### Dependencies
 
 External dependencies use open-ended ranges (`>=` the version last tested), and `package-lock.json` pins what is installed. Update them deliberately and rerun all tests. The one exception is `@types/vscode`, which matches the minimum VS Code version in `engines.vscode`, so the typecheck rejects APIs that version lacks.

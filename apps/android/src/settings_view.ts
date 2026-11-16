@@ -1,6 +1,7 @@
 /** The settings page: the notes folder, which files are notes and open in the app, review options, Rescan now, log. */
 import { m } from '@srmd/l10n'
 import { escape_html } from '@srmd/ui'
+import package_info from '../../../package.json' with { type: 'json' }
 import type { Root } from './bridge'
 import { icons } from './icons'
 import { parse_list, type AppSettings, type StoredSettings } from './settings'
@@ -67,7 +68,7 @@ export class SettingsView {
     const options = orders.map(order =>
       `<option value="${order.join()}"${order.join() === current_order ? ' selected' : ''}>${escape_html(order.map(queue_name).join(' → '))}</option>`).join('')
     this.element.innerHTML = `
-<header class="bar"><h1>${escape_html(m.android_settings())}</h1><button type="button" data-action="close" aria-label="${escape_html(m.android_close())}">${icons.close}</button></header>
+<header class="bar"><h1>${escape_html(m.android_settings())} <span class="version">${escape_html(package_info.version)}</span></h1><button type="button" data-action="close" aria-label="${escape_html(m.android_close())}">${icons.close}</button></header>
 <div class="page">
   <section>
     <h2>${escape_html(m.android_notes_folder())}</h2>

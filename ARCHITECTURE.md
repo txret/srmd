@@ -20,6 +20,8 @@
 | `tests/`              | Repository tooling tests, shared test setup and test conventions.                                                                         |
 | `foam/`               | The Foam repository as a git submodule, pinned to a commit; the Android app bundles parts of it (see "Foam in the Android app").         |
 
+The root `package.json` owns the version of both apps. `scripts/sync_versions.mjs` updates their package manifests and lockfile metadata before builds. VSIX packaging reads the root version, as do Android's native build and bundled Settings header; Android derives its integer version code from the numeric major, minor and patch parts (see [README.md](README.md#app-versions)).
+
 ## Parser
 
 ### API and data flow

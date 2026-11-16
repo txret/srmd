@@ -553,6 +553,14 @@ html.keyboard #note-search {
     text-transform: uppercase;
     color: var(--accent);
 }
+#settings h1 .version {
+    margin-left: 4px;
+    font-size: 0.65em;
+    font-style: italic;
+    font-weight: 400;
+    color: var(--muted);
+    white-space: nowrap;
+}
 #settings .page {
     padding: 8px 16px 32px;
 }

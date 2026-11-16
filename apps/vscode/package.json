@@ -241,11 +241,13 @@
   "scripts": {
     "test": "node --import ../../tests/setup.mjs --test",
     "compile:l10n": "node ../../shared/l10n/scripts/compile.mjs",
+    "prebuild": "node ../../scripts/sync_versions.mjs",
     "build": "npm run compile:l10n && tsc -p tsconfig.json --noEmit && rollup -c",
     "pretypecheck": "npm run compile:l10n",
     "typecheck": "tsc -p tsconfig.json --noEmit --pretty false",
     "clean": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\"",
     "watch": "npm run compile:l10n && rollup -c -w",
+    "prewatch": "node ../../scripts/sync_versions.mjs",
     "package": "npm run build && node ./scripts/package-vsix.mjs",
     "pretest": "npm run build"
   },

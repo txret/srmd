@@ -115,7 +115,7 @@ outlined too. Every file that opens in the app can be edited.
 
 ### Settings
 
-A page of the web app. Each control applies as soon as it changes, when valid:
+A page of the web app. Its heading shows the version from the root `package.json` after the translated Settings title, in smaller italic gray text. Each control applies as soon as it changes, when valid:
 
 - the notes folder, chosen with the system's folder picker, and **Rescan now** with the last scan's result;
 - note suffixes, the Markdown and text extensions opened in the app, and the names skipped (`.*`, hidden files, and
@@ -465,6 +465,7 @@ apps/android/
   `native/app/build/outputs/apk/debug/`. Gradle needs a JDK 17 or later with `javac` (`JAVA_HOME`) and the Android
   SDK (`ANDROID_HOME`, or `sdk.dir` in `native/local.properties`); the Android Gradle plugin installs the SDK platform
   and build tools it lacks.
+- Android's `versionName` comes directly from the root `package.json`; `versionCode` encodes its numeric major, minor and patch parts as described in [app versions](../../README.md#app-versions). The web bundle imports that same root version for the Settings header.
 - Web tests follow [tests/README.md](../../tests/README.md). `bridge`, `storage`, `library` and `views` test the
   parts that need no browser in Node. `app.test.mjs` runs the built web app in headless Chromium with
   `tests/mock_native.js`, a stand-in for the shell holding files in memory, and drives it by touch: swipes, taps,

@@ -1,6 +1,6 @@
 {
   "name": "srmd",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "license": "MIT",
   "repository": {
@@ -21,6 +21,7 @@
     "build:foam": "node scripts/build_foam.mjs",
     "debug:android": "npm run -w @srmd/app-android debug",
     "update:foam": "node scripts/update_foam.mjs",
+    "sync:version": "node scripts/sync_versions.mjs",
     "typecheck": "npm run -w @srmd/shared typecheck && npm run -w @srmd/app-vscode typecheck && npm run -w @srmd/app-android typecheck",
     "compile:l10n": "node shared/l10n/scripts/compile.mjs",
     "clean": "npm -ws --if-present run clean",
