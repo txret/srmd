@@ -5,9 +5,9 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "pretest": "node ../l10n/scripts/compile.mjs",
+    "pretest": "npm run compile --workspace @srmd/l10n",
     "test": "node --import tsx --import ../../tests/setup.mjs --test",
-    "pretypecheck": "node ../l10n/scripts/compile.mjs",
+    "pretypecheck": "npm run compile --workspace @srmd/l10n",
     "typecheck": "tsc -p tsconfig.json --noEmit --pretty false"
   },
   "type": "module",

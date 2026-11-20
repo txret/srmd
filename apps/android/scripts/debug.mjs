@@ -1,14 +1,13 @@
 /** Build and launch the debug APK, starting an installed emulator when needed, then expose its WebView to VS Code. */
-import { execFile, spawn } from 'node:child_process'
+import { execFile, execFileSync, spawn } from 'node:child_process'
 import { mkdirSync, openSync, closeSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { dirname, join, resolve } from 'node:path'
+import { join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
-import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 
 /** Resolve all tools from the same SDK; this machine keeps its virtual devices alongside it. */
-const app_dir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
+const app_dir = resolve(import.meta.dirname, '..')
 const sdk = process.env.ANDROID_HOME || join(homedir(), 'Android')
 const env = { ...process.env, ANDROID_HOME: sdk, ANDROID_AVD_HOME: process.env.ANDROID_AVD_HOME || join(sdk, 'avd') }
 // Gradle rejects conflicting SDK variables; ANDROID_HOME is the supported one.
@@ -63,16 +62,6 @@ async function start_emulator() {
   child.unref()
 }
 
-/** Build the web assets and APK with the selected SDK, showing the build output and reporting failure. */
-async function build() {
-  /* Use the same npm build as packaging, so the installed code and local source maps agree. */
-  const child = spawn('npm', ['run', 'package:android'], { cwd: app_dir, env, stdio: 'inherit' })
-  await new Promise((resolve, reject) => {
-    child.once('error', reject)
-    child.once('exit', code => code === 0 ? resolve() : reject(new Error(`Android build exited with ${code}`)))
-  })
-}
-
 /** Build, choose one device, install and launch the app, then wait for its forwarded debugging endpoint. */
 async function main() {
   /*
@@ -80,7 +69,8 @@ async function main() {
    * 2. Wait for Android, reinstall without clearing app data, and start the activity.
    * 3. Forward this process's WebView socket and finish only when the debugger can see its page.
    */
-  await build()
+  // Invoke this app's package script with the selected SDK and the same npm executable, including on Windows.
+  execFileSync(process.execPath, [process.env.npm_execpath, 'run', 'package'], { cwd: app_dir, env, stdio: 'inherit' })
   const connected = await devices()
   if (!env.ANDROID_SERIAL && connected.length > 1) throw new Error('Multiple Android devices are connected; set ANDROID_SERIAL to choose one')
   if (!connected.length && !env.ANDROID_SERIAL) await start_emulator()

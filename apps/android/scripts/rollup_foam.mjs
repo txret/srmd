@@ -3,7 +3,7 @@
  * (foam/packages/foam-vscode/esbuild.js):
  * - `@foam/core` and `@foam/core/scripting` resolve to foam-core's TypeScript source, which the app's esbuild plugin
  *   compiles like srmd's own, so Rollup leaves out what nothing uses; TypeScript and Node read foam-core's build
- *   instead (the repository's scripts/build_foam.mjs);
+ *   instead (`npm run build:foam` at the repository root);
  * - Foam's query renderer resolves to a module adding nothing: a query needs every file's metadata, while the app
  *   parses only the files a shown one links to (src/foam.ts); lodash resolves to lodash-es, its ES modules, of which
  *   Rollup bundles only the few functions Foam uses;

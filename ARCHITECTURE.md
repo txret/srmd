@@ -16,11 +16,11 @@
 | `shared/workspace/`   | Loading, reviewing and saving a folder's notes over a host's file access; the settings hosts share; a tree of all files.                 |
 | `apps/vscode/`        | VS Code settings, file search and watching, review tab, tree, decorations, and Markdown preview.                                         |
 | `apps/android/`       | Android app: a Kotlin shell around one WebView running the web app; see [apps/android/ARCHITECTURE.md](apps/android/ARCHITECTURE.md).    |
-| `scripts/`            | Repository tooling: updating the Foam submodule and compiling its core library.                                                          |
+| `scripts/`            | Repository tooling: selecting a release or commit of the Foam submodule.                                                                 |
 | `tests/`              | Repository tooling tests, shared test setup and test conventions.                                                                         |
 | `foam/`               | The Foam repository as a git submodule, pinned to a commit; the Android app bundles parts of it (see "Foam in the Android app").         |
 
-The root `package.json` owns the version of both apps. `scripts/sync_versions.mjs` updates their package manifests and lockfile metadata before builds. VSIX packaging reads the root version, as do Android's native build and bundled Settings header; Android derives its integer version code from the numeric major, minor and patch parts (see [README.md](README.md#app-versions)).
+The root `package.json` owns the version of both apps. Its `sync:version` command uses `npm pkg set` to update the app manifests before builds; npm maintains lockfile metadata on install. VSIX packaging reads the root version, as do Android's native build and bundled Settings header; Android derives its integer version code from the numeric major, minor and patch parts (see [README.md](README.md#app-versions)).
 
 ## Parser
 
@@ -270,7 +270,7 @@ Warnings never trigger normalization or automatic correction; persistence follow
 
 `shared/l10n/` uses [Paraglide](https://paraglidejs.com). `project.inlang/settings.json` lists locales; `messages/<locale>.json` contains all shared/host messages with prefixes such as `reviewer_*`, `ui_*`, `workspace_*`, `vscode_*` and `android_*`.
 
-`scripts/compile.mjs` uses the npm-installed message-format plugin, avoiding a CDN dependency, and generates typed functions in ignored `src/paraglide/`. Components import `m`; keys and placeholders are typechecked, e.g. `m.reviewer_days({ count })`. l10n, reviewer, UI, workspace, VS Code and Android test/typecheck/build scripts compile messages first.
+`npm run compile --workspace @srmd/l10n` runs `scripts/compile.mjs`, which uses the npm-installed message-format plugin and rejects catalog errors (Paraglide's CLI reports these as warnings). It generates typed functions in ignored `src/paraglide/`. Components import `m`; keys and placeholders are typechecked, e.g. `m.reviewer_days({ count })`. l10n, reviewer, UI, workspace, VS Code and Android test/typecheck/build scripts compile messages first.
 
 Hosts call `set_language()` at startup. Module-state locale fallback: exact locale → language (`sv-SE` → `sv`) → English; missing messages use English. HTML callers escape verbatim placeholders. No hard-coded user-facing text.
 

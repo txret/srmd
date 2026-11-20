@@ -1,3 +1,5 @@
+![srmd](assets/srmd-256x256.png)
+
 # srmd
 
 A flashcard spaced repetition extension for Markdown suitable for knowlege base notes that plays nice with [Foam](https://foambubble.github.io/foam/) but does not require it. Flashcards typically isolate facts, while knowledge-base notes organize related information and evolve over time. Keeping both synchronized duplicates work. Using unobtrusive cloze and scheduling Markdown syntax srmd generates flashcards from knowledge-base notes: note-taking first, spaced repetition second.
@@ -137,9 +139,18 @@ There is one important hot path, startup: find all files in scope, read from dis
 
 ### App versions
 
-The root `package.json` sets the version of both apps. Change that version once; app builds synchronize the VS Code and Android package manifests and their lockfile entries automatically. `npm run sync:version` performs just that synchronization. VSIX packaging and Android's native build read the root version directly, and Android shows the bundled version beside the Settings title.
+The root `package.json` sets the version of both apps. Change that version once; app builds synchronize the VS Code and Android package manifests automatically. `npm run sync:version` performs just that synchronization using `npm pkg set`; npm maintains lockfile metadata on install. VSIX packaging and Android's native build read the root version directly, and Android shows the bundled version beside the Settings title.
 
 Android derives its numeric `versionCode` as `major * 1000000 + minor * 1000 + patch` (minor and patch must be below 1000). Version suffixes do not change this code; increment the numeric version for each published Android update.
+
+### App icon
+
+`assets/srmd.png` is the original artwork. The apps use smaller PNG copies: 256×256 for VS Code and 432×432 for Android's adaptive launcher icon. After replacing the original, regenerate them with ImageMagick:
+
+```sh
+magick assets/srmd.png -resize 256x256 -strip -depth 8 apps/vscode/resources/srmd.png
+magick assets/srmd.png -resize 432x432 -strip -depth 8 apps/android/native/app/src/main/res/drawable-nodpi/srmd.png
+```
 
 ### Dependencies
 
@@ -158,7 +169,7 @@ npm run update:foam -- vscode@0.48.0
 npm run update:foam -- 7a2e6322952f4fb2640113cc93f7af8f334bc67c
 ```
 
-Both forms refuse uncommitted changes inside `foam/`, check out the selected commit, run `npm install`, type-check all components and run all tests. A failure stops the command and leaves the selected checkout available for investigation. After success, review `git diff --submodule=log -- foam package-lock.json` and commit the submodule pointer and any lockfile changes together. Normal builds keep using the pinned commit.
+Both forms refuse uncommitted changes inside `foam/` and check out the selected commit. npm's `postupdate:foam` hook then runs `npm install`, type-checks all components and runs all tests. A failure stops the command and leaves the selected checkout available for investigation. After success, review `git diff --submodule=log -- foam package-lock.json` and commit the submodule pointer and any lockfile changes together. Normal builds keep using the pinned commit.
 
 An explicit commit is resolved locally first; only a missing commit is fetched from `origin`. For a fix awaiting upstream merge, create a branch inside `foam/` (`git -C foam switch -c srmd-patch`), commit the patch there, and pass the full SHA printed by `git -C foam rev-parse HEAD` to `npm run update:foam -- <sha>`. Selecting that commit needs no Git fetch or release lookup. The updater detaches the checkout but retains your patch branch.
 

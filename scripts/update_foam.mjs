@@ -1,7 +1,7 @@
-// Update the repository's Foam submodule, refresh dependencies and validate srmd.
+// Select a Foam commit; npm's postupdate:foam hook installs dependencies and validates srmd afterward.
 import { execFileSync } from 'node:child_process'
 import { existsSync } from 'node:fs'
-import { dirname, resolve } from 'node:path'
+import { resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 /** Run a command in cwd, showing its progress and stopping on failure. */
@@ -76,28 +76,10 @@ export async function update_foam(root, revision) {
   return { previous, commit, target }
 }
 
-/** Run the root npm command, updating dependencies and validating the selected Foam sources before reporting success. */
-async function main() {
-  /* Read the optional revision, update Foam, then install and validate from srmd's root with the invoking npm. */
-  const args = process.argv.slice(2)
-  if (args.length > 1) throw new Error('Usage: npm run update:foam -- [release-tag-or-full-commit-sha]')
-  const npm_cli = process.env.npm_execpath
-  if (!npm_cli) throw new Error('Run this script with npm run update:foam')
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), '..')
-  const { previous, commit, target } = await update_foam(root, args[0])
-  console.log(`Foam: ${previous} -> ${commit} (${target})`)
-
-  // Use the same npm executable as the caller, including on Windows, without a shell or an extra dependency.
-  run(root, process.execPath, [npm_cli, 'install'])
-  run(root, process.execPath, [npm_cli, 'run', 'typecheck'])
-  run(root, process.execPath, [npm_cli, 'test'])
-  console.log('Validation passed. Review with git diff --submodule=log -- foam package-lock.json, then commit the update.')
-}
-
 // Importing update_foam for tests must not start an update of the real repository.
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  main().catch(error => {
-    console.error(error.message)
-    process.exitCode = 1
-  })
+  const args = process.argv.slice(2)
+  if (args.length > 1) throw new Error('Usage: npm run update:foam -- [release-tag-or-full-commit-sha]')
+  const { previous, commit, target } = await update_foam(resolve(import.meta.dirname, '..'), args[0])
+  console.log(`Foam: ${previous} -> ${commit} (${target})`)
 }
